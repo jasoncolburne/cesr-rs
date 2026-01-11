@@ -1,0 +1,45 @@
+[package]
+name = "cesr"
+version = "0.1.0"
+edition = "2024"
+authors = ["Jason Colburne"]
+license = "MIT"
+description = "Minimal CESR implementation for P-256 and blake3"
+
+[lib]
+name = "cesr"
+path = "src/lib.rs"
+
+[features]
+default = ["native"]
+native = ["rand/std", "blake3/std", "p256/std"]
+wasm = ["getrandom/js"]
+
+[dependencies]
+# Cryptography - use default-features = false for WASM compatibility
+blake3 = { version = "1", default-features = false }
+p256 = { version = "0.13", features = ["ecdsa", "ecdsa-core"], default-features = false }
+signature = "2"
+# RNG support - std_rng and getrandom always enabled for key generation
+rand = { version = "0.8", default-features = false, features = ["std_rng", "getrandom"] }
+getrandom = { version = "0.2", default-features = false, optional = true }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+thiserror = "1"
+
+# Encoding
+base64 = "0.22"
+
+# WASM target dependencies
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[dev-dependencies]
+hex = "0.4"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unwrap_in_result = "deny"
