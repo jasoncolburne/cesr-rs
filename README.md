@@ -4,6 +4,8 @@ Chosen for speed and compatibility with mobile/hsm technology.
 
 # Getting started
 
+You'll need `make`.
+
 ## Rust toolchain
 
 If you don't have cargo installed, check here: [rustup](https://rust-lang.org/tools/install/)
