@@ -1,8 +1,8 @@
 //! Cryptographic Signatures
 //!
 //! CESR signature primitives:
-//! - Ed25519: 64-byte signatures, 2-char code '0B' (64 % 3 == 1)
-//! - secp256r1: 64-byte signatures, 2-char code '0C' (64 % 3 == 1)
+//! - secp256r1: 64-byte signatures, 2-char code '0I' (64 % 3 == 1)
+//! - ML-DSA-65: 3309-byte signatures, 4-char code '1AAQ' (3309 % 3 == 0)
 
 use crate::base64::{b64_decode, b64_encode};
 use crate::codes::SignatureCode;
@@ -44,14 +44,25 @@ impl Matter for Signature {
     }
 
     fn qb64(&self) -> String {
-        // 64 bytes, 2-char code
-        // 64 % 3 == 1, so base64 would need 2 padding chars
-        // 2-char code fills that padding
-        // Prepend 2 zero bytes, encode, replace first 2 chars with code
-        let mut padded = vec![0u8; 2];
-        padded.extend_from_slice(&self.raw);
-        let encoded = b64_encode(&padded);
-        format!("{}{}", self.code.code(), &encoded[2..])
+        match self.code {
+            SignatureCode::Secp256r1 => {
+                // 64 bytes, 2-char code '0I'
+                // Prepend 2 zero bytes, encode, replace first 2 chars with code
+                let mut padded = vec![0u8; 2];
+                padded.extend_from_slice(&self.raw);
+                let encoded = b64_encode(&padded);
+                format!("{}{}", self.code.code(), &encoded[2..])
+            }
+            SignatureCode::MlDsa65 => {
+                // 3309 bytes, 4-char code '1AAQ'
+                // 3309 % 3 == 0, so 3 pad bytes for 4-char code
+                // Prepend 3 zero bytes, encode, replace first 4 chars with code
+                let mut padded = vec![0u8; 3];
+                padded.extend_from_slice(&self.raw);
+                let encoded = b64_encode(&padded);
+                format!("{}{}", self.code.code(), &encoded[4..])
+            }
+        }
     }
 
     fn from_qb64(qb64: &str) -> Result<Self, CesrError> {
@@ -64,10 +75,14 @@ impl Matter for Signature {
             });
         }
 
-        // Replace code with 'AA', decode, skip first 2 bytes
-        let to_decode = format!("AA{}", &qb64[2..]);
+        let (pad_str, skip_bytes) = match code {
+            SignatureCode::Secp256r1 => ("AA", 2usize),
+            SignatureCode::MlDsa65 => ("AAAA", 3usize),
+        };
+
+        let to_decode = format!("{}{}", pad_str, &qb64[code.code_size()..]);
         let decoded = b64_decode(&to_decode)?;
-        let raw = decoded[2..].to_vec();
+        let raw = decoded[skip_bytes..].to_vec();
 
         if raw.len() != code.raw_size() {
             return Err(CesrError::InvalidLength {
@@ -108,7 +123,7 @@ impl<'de> serde::Deserialize<'de> for Signature {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keys::generate_secp256r1;
+    use crate::keys::{generate_ml_dsa_65, generate_secp256r1};
 
     #[test]
     fn test_secp256r1_signature_qb64() {
@@ -118,6 +133,19 @@ mod tests {
         let qb64 = sig.qb64();
         assert!(qb64.starts_with("0I"));
         assert_eq!(qb64.len(), 88);
+
+        let parsed = Signature::from_qb64(&qb64).unwrap();
+        assert_eq!(sig, parsed);
+    }
+
+    #[test]
+    fn test_ml_dsa_65_signature_qb64() {
+        let (_, private) = generate_ml_dsa_65().unwrap();
+        let sig = private.sign(b"test message").unwrap();
+
+        let qb64 = sig.qb64();
+        assert!(qb64.starts_with("1AAQ"));
+        assert_eq!(qb64.len(), 4416);
 
         let parsed = Signature::from_qb64(&qb64).unwrap();
         assert_eq!(sig, parsed);

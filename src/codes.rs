@@ -48,6 +48,8 @@ impl DigestCode {
 pub enum KeyCode {
     /// secp256r1 (P-256) compressed public key (33 bytes)
     Secp256r1,
+    /// ML-DSA-65 public key (1952 bytes)
+    MlDsa65,
 }
 
 impl KeyCode {
@@ -55,6 +57,7 @@ impl KeyCode {
     pub fn code(&self) -> &'static str {
         match self {
             KeyCode::Secp256r1 => "1AAJ",
+            KeyCode::MlDsa65 => "b",
         }
     }
 
@@ -62,6 +65,7 @@ impl KeyCode {
     pub fn raw_size(&self) -> usize {
         match self {
             KeyCode::Secp256r1 => 33, // Compressed point
+            KeyCode::MlDsa65 => 1952,
         }
     }
 
@@ -73,7 +77,8 @@ impl KeyCode {
     /// Full qb64 size
     pub fn qb64_size(&self) -> usize {
         match self {
-            KeyCode::Secp256r1 => 48, // 1AAB + 44 chars
+            KeyCode::Secp256r1 => 48, // 4 + 44
+            KeyCode::MlDsa65 => 2604, // 1 + 2603 (1953 bytes → 2604 base64 chars)
         }
     }
 
@@ -81,14 +86,18 @@ impl KeyCode {
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
             "1AAJ" => Ok(KeyCode::Secp256r1),
+            "b" => Ok(KeyCode::MlDsa65),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
 
     /// Try to detect code from qb64 string start
     pub fn detect(qb64: &str) -> Result<Self, CesrError> {
+        // Check multi-char codes first
         if qb64.starts_with("1AAJ") {
             Ok(KeyCode::Secp256r1)
+        } else if qb64.starts_with('b') {
+            Ok(KeyCode::MlDsa65)
         } else {
             Err(CesrError::InvalidCode(
                 qb64.chars().take(4).collect::<String>(),
@@ -102,6 +111,8 @@ impl KeyCode {
 pub enum SeedCode {
     /// secp256r1 (P-256) seed (32 bytes)
     Secp256r1,
+    /// ML-DSA-65 seed (32 bytes)
+    MlDsa65,
 }
 
 impl SeedCode {
@@ -109,6 +120,7 @@ impl SeedCode {
     pub fn code(&self) -> &'static str {
         match self {
             SeedCode::Secp256r1 => "Q",
+            SeedCode::MlDsa65 => "c",
         }
     }
 
@@ -126,6 +138,7 @@ impl SeedCode {
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
             "Q" => Ok(SeedCode::Secp256r1),
+            "c" => Ok(SeedCode::MlDsa65),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
@@ -134,6 +147,8 @@ impl SeedCode {
     pub fn detect(qb64: &str) -> Result<Self, CesrError> {
         if qb64.starts_with('Q') {
             Ok(SeedCode::Secp256r1)
+        } else if qb64.starts_with('c') {
+            Ok(SeedCode::MlDsa65)
         } else {
             Err(CesrError::InvalidCode(
                 qb64.chars().take(1).collect::<String>(),
@@ -147,6 +162,8 @@ impl SeedCode {
 pub enum SignatureCode {
     /// secp256r1 (P-256) ECDSA signature (64 bytes)
     Secp256r1,
+    /// ML-DSA-65 signature (3309 bytes)
+    MlDsa65,
 }
 
 impl SignatureCode {
@@ -154,6 +171,7 @@ impl SignatureCode {
     pub fn code(&self) -> &'static str {
         match self {
             SignatureCode::Secp256r1 => "0I",
+            SignatureCode::MlDsa65 => "1AAQ",
         }
     }
 
@@ -161,6 +179,7 @@ impl SignatureCode {
     pub fn raw_size(&self) -> usize {
         match self {
             SignatureCode::Secp256r1 => 64,
+            SignatureCode::MlDsa65 => 3309,
         }
     }
 
@@ -171,25 +190,31 @@ impl SignatureCode {
 
     /// Full qb64 size
     pub fn qb64_size(&self) -> usize {
-        // 2 char code + 86 chars base64 for 64 bytes
-        88
+        match self {
+            SignatureCode::Secp256r1 => 88, // 2 + 86
+            SignatureCode::MlDsa65 => 4416, // 4 + 4412 (3312 bytes → 4416 base64 chars)
+        }
     }
 
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
             "0I" => Ok(SignatureCode::Secp256r1),
+            "1AAQ" => Ok(SignatureCode::MlDsa65),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
 
     /// Try to detect code from qb64 string start
     pub fn detect(qb64: &str) -> Result<Self, CesrError> {
-        if qb64.starts_with("0I") {
+        // Check 4-char codes before 2-char codes
+        if qb64.starts_with("1AAQ") {
+            Ok(SignatureCode::MlDsa65)
+        } else if qb64.starts_with("0I") {
             Ok(SignatureCode::Secp256r1)
         } else {
             Err(CesrError::InvalidCode(
-                qb64.chars().take(2).collect::<String>(),
+                qb64.chars().take(4).collect::<String>(),
             ))
         }
     }
@@ -209,10 +234,63 @@ mod tests {
     #[test]
     fn test_key_codes() {
         assert_eq!(KeyCode::Secp256r1.code(), "1AAJ");
+        assert_eq!(KeyCode::Secp256r1.raw_size(), 33);
+        assert_eq!(KeyCode::Secp256r1.qb64_size(), 48);
+
+        assert_eq!(KeyCode::MlDsa65.code(), "b");
+        assert_eq!(KeyCode::MlDsa65.raw_size(), 1952);
+        assert_eq!(KeyCode::MlDsa65.qb64_size(), 2604);
     }
 
     #[test]
     fn test_signature_codes() {
         assert_eq!(SignatureCode::Secp256r1.code(), "0I");
+        assert_eq!(SignatureCode::Secp256r1.raw_size(), 64);
+        assert_eq!(SignatureCode::Secp256r1.qb64_size(), 88);
+
+        assert_eq!(SignatureCode::MlDsa65.code(), "1AAQ");
+        assert_eq!(SignatureCode::MlDsa65.raw_size(), 3309);
+        assert_eq!(SignatureCode::MlDsa65.qb64_size(), 4416);
+    }
+
+    #[test]
+    fn test_seed_codes() {
+        assert_eq!(SeedCode::Secp256r1.code(), "Q");
+        assert_eq!(SeedCode::Secp256r1.raw_size(), 32);
+        assert_eq!(SeedCode::Secp256r1.qb64_size(), 44);
+
+        assert_eq!(SeedCode::MlDsa65.code(), "c");
+        assert_eq!(SeedCode::MlDsa65.raw_size(), 32);
+        assert_eq!(SeedCode::MlDsa65.qb64_size(), 44);
+    }
+
+    #[test]
+    fn test_key_code_detect() {
+        assert_eq!(
+            KeyCode::detect("1AAJsomething").unwrap(),
+            KeyCode::Secp256r1
+        );
+        assert_eq!(KeyCode::detect("bsomething").unwrap(), KeyCode::MlDsa65);
+        assert!(KeyCode::detect("Xsomething").is_err());
+    }
+
+    #[test]
+    fn test_signature_code_detect() {
+        assert_eq!(
+            SignatureCode::detect("0Isomething").unwrap(),
+            SignatureCode::Secp256r1
+        );
+        assert_eq!(
+            SignatureCode::detect("1AAQsomething").unwrap(),
+            SignatureCode::MlDsa65
+        );
+        assert!(SignatureCode::detect("XXsomething").is_err());
+    }
+
+    #[test]
+    fn test_seed_code_detect() {
+        assert_eq!(SeedCode::detect("Qsomething").unwrap(), SeedCode::Secp256r1);
+        assert_eq!(SeedCode::detect("csomething").unwrap(), SeedCode::MlDsa65);
+        assert!(SeedCode::detect("Xsomething").is_err());
     }
 }
