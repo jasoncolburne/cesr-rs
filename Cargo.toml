@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Jason Colburne"]
 license = "MIT"
-description = "Minimal CESR implementation for P-256, ML-DSA-65, and blake3"
+description = "Minimal CESR implementation for P-256, ML-DSA-65, ML-KEM-768, and blake3"
 
 [lib]
 name = "cesr"
@@ -12,13 +12,14 @@ path = "src/lib.rs"
 
 [features]
 default = ["native"]
-native = ["rand/std", "blake3/std", "p256/std", "fips204/default"]
+native = ["rand/std", "blake3/std", "p256/std", "fips204/default", "fips203/default"]
 wasm = ["getrandom/js"]
 
 [dependencies]
 # Cryptography - use default-features = false for WASM compatibility
 blake3 = { version = "1", default-features = false }
 p256 = { version = "0.13", features = ["ecdsa", "ecdsa-core"], default-features = false }
+fips203 = { version = "0.4", default-features = false }
 fips204 = { version = "0.4", default-features = false }
 signature = "2"
 # RNG support - std_rng and getrandom always enabled for key generation

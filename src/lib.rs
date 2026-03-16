@@ -7,6 +7,7 @@
 //! - Blake3-256 digests
 //! - secp256r1 (P-256) ECDSA keys and signatures
 //! - ML-DSA-65 (FIPS 204) post-quantum keys and signatures
+//! - ML-KEM-768 (FIPS 203) KEM encapsulation keys and ciphertexts
 
 #![cfg_attr(
     test,
@@ -17,14 +18,18 @@ mod base64;
 mod codes;
 mod digest;
 mod error;
+mod kem;
 mod keys;
 mod matter;
 mod signature;
 
 pub use base64::{b64_decode, b64_encode};
-pub use codes::{DigestCode, KeyCode, SeedCode, SignatureCode};
+pub use codes::{
+    DigestCode, KemCiphertextCode, KemKeyCode, SeedCode, SignatureCode, SigningKeyCode,
+};
 pub use digest::Digest;
 pub use error::CesrError;
+pub use kem::{KemCiphertext, KemPrivateKey, KemPublicKey, generate_ml_kem_768};
 pub use keys::{PrivateKey, PublicKey, generate_ml_dsa_65, generate_secp256r1};
 pub use matter::Matter;
 pub use signature::Signature;
