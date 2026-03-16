@@ -3,10 +3,10 @@
 //! Composable Event Streaming Representation (CESR) provides self-describing
 //! cryptographic primitives with both text (Base64url) and binary representations.
 //!
-//! This implementation supports the subset needed for ADNS:
+//! This implementation supports the subset needed for KELS:
 //! - Blake3-256 digests
 //! - secp256r1 (P-256) ECDSA keys and signatures
-//! - Ed25519 keys and signatures
+//! - ML-DSA-65 (FIPS 204) post-quantum keys and signatures
 
 #![cfg_attr(
     test,
@@ -25,7 +25,7 @@ pub use base64::{b64_decode, b64_encode};
 pub use codes::{DigestCode, KeyCode, SeedCode, SignatureCode};
 pub use digest::Digest;
 pub use error::CesrError;
-pub use keys::{PrivateKey, PublicKey, generate_secp256r1};
+pub use keys::{PrivateKey, PublicKey, generate_ml_dsa_65, generate_secp256r1};
 pub use matter::Matter;
 pub use signature::Signature;
 
@@ -73,6 +73,36 @@ mod tests {
         // Private key seed should start with 'Q'
         let qb64 = private.qb64();
         assert!(qb64.starts_with('Q'));
+        assert_eq!(qb64.len(), 44);
+
+        // Roundtrip
+        let parsed = PrivateKey::from_qb64(&qb64).unwrap();
+        assert_eq!(private.to_bytes(), parsed.to_bytes());
+    }
+
+    #[test]
+    fn test_ml_dsa_65_keypair() {
+        let (public, private) = keys::generate_ml_dsa_65().unwrap();
+
+        // Public key should start with 'b'
+        let pub_qb64 = public.qb64();
+        assert!(pub_qb64.starts_with('b'));
+        assert_eq!(pub_qb64.len(), 2604);
+
+        // Sign and verify
+        let message = b"test message";
+        let sig = private.sign(message).unwrap();
+
+        assert!(public.verify(message, &sig).is_ok());
+    }
+
+    #[test]
+    fn test_ml_dsa_65_private_key_qb64() {
+        let (_, private) = keys::generate_ml_dsa_65().unwrap();
+
+        // Private key seed should start with 'c'
+        let qb64 = private.qb64();
+        assert!(qb64.starts_with('c'));
         assert_eq!(qb64.len(), 44);
 
         // Roundtrip
