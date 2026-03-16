@@ -43,29 +43,29 @@ impl DigestCode {
     }
 }
 
-/// Public key algorithm codes
+/// Signing public key algorithm codes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum KeyCode {
+pub enum SigningKeyCode {
     /// secp256r1 (P-256) compressed public key (33 bytes)
     Secp256r1,
     /// ML-DSA-65 public key (1952 bytes)
     MlDsa65,
 }
 
-impl KeyCode {
+impl SigningKeyCode {
     /// CESR code string - transferable
     pub fn code(&self) -> &'static str {
         match self {
-            KeyCode::Secp256r1 => "1AAJ",
-            KeyCode::MlDsa65 => "b",
+            SigningKeyCode::Secp256r1 => "1AAJ",
+            SigningKeyCode::MlDsa65 => "b",
         }
     }
 
     /// Raw key size in bytes
     pub fn raw_size(&self) -> usize {
         match self {
-            KeyCode::Secp256r1 => 33, // Compressed point
-            KeyCode::MlDsa65 => 1952,
+            SigningKeyCode::Secp256r1 => 33, // Compressed point
+            SigningKeyCode::MlDsa65 => 1952,
         }
     }
 
@@ -77,16 +77,16 @@ impl KeyCode {
     /// Full qb64 size
     pub fn qb64_size(&self) -> usize {
         match self {
-            KeyCode::Secp256r1 => 48, // 4 + 44
-            KeyCode::MlDsa65 => 2604, // 1 + 2603 (1953 bytes → 2604 base64 chars)
+            SigningKeyCode::Secp256r1 => 48, // 4 + 44
+            SigningKeyCode::MlDsa65 => 2604, // 1 + 2603 (1953 bytes → 2604 base64 chars)
         }
     }
 
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
-            "1AAJ" => Ok(KeyCode::Secp256r1),
-            "b" => Ok(KeyCode::MlDsa65),
+            "1AAJ" => Ok(SigningKeyCode::Secp256r1),
+            "b" => Ok(SigningKeyCode::MlDsa65),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
@@ -95,12 +95,120 @@ impl KeyCode {
     pub fn detect(qb64: &str) -> Result<Self, CesrError> {
         // Check multi-char codes first
         if qb64.starts_with("1AAJ") {
-            Ok(KeyCode::Secp256r1)
+            Ok(SigningKeyCode::Secp256r1)
         } else if qb64.starts_with('b') {
-            Ok(KeyCode::MlDsa65)
+            Ok(SigningKeyCode::MlDsa65)
         } else {
             Err(CesrError::InvalidCode(
                 qb64.chars().take(4).collect::<String>(),
+            ))
+        }
+    }
+}
+
+/// KEM encapsulation key codes
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KemKeyCode {
+    /// ML-KEM-768 encapsulation key (1184 bytes)
+    MlKem768,
+}
+
+impl KemKeyCode {
+    /// CESR code string
+    pub fn code(&self) -> &'static str {
+        match self {
+            KemKeyCode::MlKem768 => "d",
+        }
+    }
+
+    /// Raw key size in bytes
+    pub fn raw_size(&self) -> usize {
+        match self {
+            KemKeyCode::MlKem768 => 1184,
+        }
+    }
+
+    /// Code length in characters
+    pub fn code_size(&self) -> usize {
+        self.code().len()
+    }
+
+    /// Full qb64 size
+    pub fn qb64_size(&self) -> usize {
+        match self {
+            KemKeyCode::MlKem768 => 1580, // 1 + 1579 (1185 bytes → 1580 base64 chars)
+        }
+    }
+
+    /// Parse from code string
+    pub fn from_code(code: &str) -> Result<Self, CesrError> {
+        match code {
+            "d" => Ok(KemKeyCode::MlKem768),
+            _ => Err(CesrError::InvalidCode(code.to_string())),
+        }
+    }
+
+    /// Try to detect code from qb64 string start
+    pub fn detect(qb64: &str) -> Result<Self, CesrError> {
+        if qb64.starts_with('d') {
+            Ok(KemKeyCode::MlKem768)
+        } else {
+            Err(CesrError::InvalidCode(
+                qb64.chars().take(1).collect::<String>(),
+            ))
+        }
+    }
+}
+
+/// KEM ciphertext codes
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KemCiphertextCode {
+    /// ML-KEM-768 ciphertext (1088 bytes)
+    MlKem768,
+}
+
+impl KemCiphertextCode {
+    /// CESR code string
+    pub fn code(&self) -> &'static str {
+        match self {
+            KemCiphertextCode::MlKem768 => "e",
+        }
+    }
+
+    /// Raw ciphertext size in bytes
+    pub fn raw_size(&self) -> usize {
+        match self {
+            KemCiphertextCode::MlKem768 => 1088,
+        }
+    }
+
+    /// Code length in characters
+    pub fn code_size(&self) -> usize {
+        self.code().len()
+    }
+
+    /// Full qb64 size
+    pub fn qb64_size(&self) -> usize {
+        match self {
+            KemCiphertextCode::MlKem768 => 1452, // 1 + 1451 (1089 bytes → 1452 base64 chars)
+        }
+    }
+
+    /// Parse from code string
+    pub fn from_code(code: &str) -> Result<Self, CesrError> {
+        match code {
+            "e" => Ok(KemCiphertextCode::MlKem768),
+            _ => Err(CesrError::InvalidCode(code.to_string())),
+        }
+    }
+
+    /// Try to detect code from qb64 string start
+    pub fn detect(qb64: &str) -> Result<Self, CesrError> {
+        if qb64.starts_with('e') {
+            Ok(KemCiphertextCode::MlKem768)
+        } else {
+            Err(CesrError::InvalidCode(
+                qb64.chars().take(1).collect::<String>(),
             ))
         }
     }
@@ -232,14 +340,28 @@ mod tests {
     }
 
     #[test]
-    fn test_key_codes() {
-        assert_eq!(KeyCode::Secp256r1.code(), "1AAJ");
-        assert_eq!(KeyCode::Secp256r1.raw_size(), 33);
-        assert_eq!(KeyCode::Secp256r1.qb64_size(), 48);
+    fn test_signing_key_codes() {
+        assert_eq!(SigningKeyCode::Secp256r1.code(), "1AAJ");
+        assert_eq!(SigningKeyCode::Secp256r1.raw_size(), 33);
+        assert_eq!(SigningKeyCode::Secp256r1.qb64_size(), 48);
 
-        assert_eq!(KeyCode::MlDsa65.code(), "b");
-        assert_eq!(KeyCode::MlDsa65.raw_size(), 1952);
-        assert_eq!(KeyCode::MlDsa65.qb64_size(), 2604);
+        assert_eq!(SigningKeyCode::MlDsa65.code(), "b");
+        assert_eq!(SigningKeyCode::MlDsa65.raw_size(), 1952);
+        assert_eq!(SigningKeyCode::MlDsa65.qb64_size(), 2604);
+    }
+
+    #[test]
+    fn test_kem_key_codes() {
+        assert_eq!(KemKeyCode::MlKem768.code(), "d");
+        assert_eq!(KemKeyCode::MlKem768.raw_size(), 1184);
+        assert_eq!(KemKeyCode::MlKem768.qb64_size(), 1580);
+    }
+
+    #[test]
+    fn test_kem_ciphertext_codes() {
+        assert_eq!(KemCiphertextCode::MlKem768.code(), "e");
+        assert_eq!(KemCiphertextCode::MlKem768.raw_size(), 1088);
+        assert_eq!(KemCiphertextCode::MlKem768.qb64_size(), 1452);
     }
 
     #[test]
@@ -265,13 +387,34 @@ mod tests {
     }
 
     #[test]
-    fn test_key_code_detect() {
+    fn test_signing_key_code_detect() {
         assert_eq!(
-            KeyCode::detect("1AAJsomething").unwrap(),
-            KeyCode::Secp256r1
+            SigningKeyCode::detect("1AAJsomething").unwrap(),
+            SigningKeyCode::Secp256r1
         );
-        assert_eq!(KeyCode::detect("bsomething").unwrap(), KeyCode::MlDsa65);
-        assert!(KeyCode::detect("Xsomething").is_err());
+        assert_eq!(
+            SigningKeyCode::detect("bsomething").unwrap(),
+            SigningKeyCode::MlDsa65
+        );
+        assert!(SigningKeyCode::detect("Xsomething").is_err());
+    }
+
+    #[test]
+    fn test_kem_key_code_detect() {
+        assert_eq!(
+            KemKeyCode::detect("dsomething").unwrap(),
+            KemKeyCode::MlKem768
+        );
+        assert!(KemKeyCode::detect("Xsomething").is_err());
+    }
+
+    #[test]
+    fn test_kem_ciphertext_code_detect() {
+        assert_eq!(
+            KemCiphertextCode::detect("esomething").unwrap(),
+            KemCiphertextCode::MlKem768
+        );
+        assert!(KemCiphertextCode::detect("Xsomething").is_err());
     }
 
     #[test]
