@@ -6,8 +6,8 @@
 //! This implementation supports the subset needed for KELS:
 //! - Blake3-256 digests
 //! - secp256r1 (P-256) ECDSA keys and signatures
-//! - ML-DSA-65 (FIPS 204) post-quantum keys and signatures
-//! - ML-KEM-768 (FIPS 203) KEM encapsulation keys and ciphertexts
+//! - ML-DSA-65/87 (FIPS 204) post-quantum keys and signatures
+//! - ML-KEM-768/1024 (FIPS 203) KEM encapsulation keys and ciphertexts
 
 #![cfg_attr(
     test,
@@ -29,8 +29,10 @@ pub use codes::{
 };
 pub use digest::Digest;
 pub use error::CesrError;
-pub use kem::{KemCiphertext, KemPrivateKey, KemPublicKey, generate_ml_kem_768};
-pub use keys::{PrivateKey, PublicKey, generate_ml_dsa_65, generate_secp256r1};
+pub use kem::{
+    KemCiphertext, KemPrivateKey, KemPublicKey, generate_ml_kem_768, generate_ml_kem_1024,
+};
+pub use keys::{PrivateKey, PublicKey, generate_ml_dsa_65, generate_ml_dsa_87, generate_secp256r1};
 pub use matter::Matter;
 pub use signature::Signature;
 
@@ -108,6 +110,36 @@ mod tests {
         // Private key seed should start with 'c'
         let qb64 = private.qb64();
         assert!(qb64.starts_with('c'));
+        assert_eq!(qb64.len(), 44);
+
+        // Roundtrip
+        let parsed = PrivateKey::from_qb64(&qb64).unwrap();
+        assert_eq!(private.to_bytes(), parsed.to_bytes());
+    }
+
+    #[test]
+    fn test_ml_dsa_87_keypair() {
+        let (public, private) = keys::generate_ml_dsa_87().unwrap();
+
+        // Public key should start with '1AAK'
+        let pub_qb64 = public.qb64();
+        assert!(pub_qb64.starts_with("1AAK"));
+        assert_eq!(pub_qb64.len(), 3460);
+
+        // Sign and verify
+        let message = b"test message";
+        let sig = private.sign(message).unwrap();
+
+        assert!(public.verify(message, &sig).is_ok());
+    }
+
+    #[test]
+    fn test_ml_dsa_87_private_key_qb64() {
+        let (_, private) = keys::generate_ml_dsa_87().unwrap();
+
+        // Private key seed should start with 'f'
+        let qb64 = private.qb64();
+        assert!(qb64.starts_with('f'));
         assert_eq!(qb64.len(), 44);
 
         // Roundtrip

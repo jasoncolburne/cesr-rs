@@ -44,25 +44,15 @@ impl Matter for Signature {
     }
 
     fn qb64(&self) -> String {
-        match self.code {
-            SignatureCode::Secp256r1 => {
-                // 64 bytes, 2-char code '0I'
-                // Prepend 2 zero bytes, encode, replace first 2 chars with code
-                let mut padded = vec![0u8; 2];
-                padded.extend_from_slice(&self.raw);
-                let encoded = b64_encode(&padded);
-                format!("{}{}", self.code.code(), &encoded[2..])
-            }
-            SignatureCode::MlDsa65 => {
-                // 3309 bytes, 4-char code '1AAQ'
-                // 3309 % 3 == 0, so 3 pad bytes for 4-char code
-                // Prepend 3 zero bytes, encode, replace first 4 chars with code
-                let mut padded = vec![0u8; 3];
-                padded.extend_from_slice(&self.raw);
-                let encoded = b64_encode(&padded);
-                format!("{}{}", self.code.code(), &encoded[4..])
-            }
-        }
+        let (pad_bytes, code_str) = match self.code {
+            SignatureCode::Secp256r1 => (2, "0I"),
+            SignatureCode::MlDsa65 => (3, "1AAQ"),
+            SignatureCode::MlDsa87 => (2, "0J"),
+        };
+        let mut padded = vec![0u8; pad_bytes];
+        padded.extend_from_slice(&self.raw);
+        let encoded = b64_encode(&padded);
+        format!("{}{}", code_str, &encoded[code_str.len()..])
     }
 
     fn from_qb64(qb64: &str) -> Result<Self, CesrError> {
@@ -78,6 +68,7 @@ impl Matter for Signature {
         let (pad_str, skip_bytes) = match code {
             SignatureCode::Secp256r1 => ("AA", 2usize),
             SignatureCode::MlDsa65 => ("AAAA", 3usize),
+            SignatureCode::MlDsa87 => ("AA", 2usize),
         };
 
         let to_decode = format!("{}{}", pad_str, &qb64[code.code_size()..]);
@@ -123,7 +114,7 @@ impl<'de> serde::Deserialize<'de> for Signature {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keys::{generate_ml_dsa_65, generate_secp256r1};
+    use crate::keys::{generate_ml_dsa_65, generate_ml_dsa_87, generate_secp256r1};
 
     #[test]
     fn test_secp256r1_signature_qb64() {
@@ -146,6 +137,19 @@ mod tests {
         let qb64 = sig.qb64();
         assert!(qb64.starts_with("1AAQ"));
         assert_eq!(qb64.len(), 4416);
+
+        let parsed = Signature::from_qb64(&qb64).unwrap();
+        assert_eq!(sig, parsed);
+    }
+
+    #[test]
+    fn test_ml_dsa_87_signature_qb64() {
+        let (_, private) = generate_ml_dsa_87().unwrap();
+        let sig = private.sign(b"test message").unwrap();
+
+        let qb64 = sig.qb64();
+        assert!(qb64.starts_with("0J"));
+        assert_eq!(qb64.len(), 6172);
 
         let parsed = Signature::from_qb64(&qb64).unwrap();
         assert_eq!(sig, parsed);
