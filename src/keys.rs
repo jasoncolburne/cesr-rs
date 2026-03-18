@@ -1,8 +1,8 @@
 //! Cryptographic Keys
 //!
 //! CESR key primitives with support for:
-//! - secp256r1: 33-byte compressed keys, 4-char code '1AAJ' (33 % 3 == 0)
-//! - ML-DSA-65: 1952-byte public keys, 1-char code 'b' (1952 % 3 == 2)
+//! - secp256r1: 33-byte compressed keys, 4-char code '1AAC' (33 % 3 == 0)
+//! - ML-DSA-65: 1952-byte public keys, 1-char code 'Q' (1952 % 3 == 2)
 
 use p256::ecdsa::{
     Signature as P256Sig, SigningKey as P256SigningKey, VerifyingKey as P256VerifyingKey,
@@ -17,7 +17,7 @@ use fips204::traits::{
 use fips204::{ml_dsa_65, ml_dsa_87};
 
 use crate::base64::{b64_decode, b64_encode};
-use crate::codes::{SeedCode, SignatureCode, SigningKeyCode};
+use crate::codes::{SigningKeySeedCode, SignatureCode, VerificationKeyCode};
 use crate::error::CesrError;
 use crate::matter::Matter;
 use crate::signature::Signature;
@@ -25,16 +25,16 @@ use crate::signature::Signature;
 /// A public key with CESR encoding
 #[derive(Debug, Clone)]
 pub struct PublicKey {
-    code: SigningKeyCode,
+    code: VerificationKeyCode,
     raw: Vec<u8>,
 }
 
 impl PublicKey {
     /// Create from raw bytes with specified algorithm
-    pub fn from_raw(code: SigningKeyCode, raw: Vec<u8>) -> Result<Self, CesrError> {
+    pub fn from_raw(code: VerificationKeyCode, raw: Vec<u8>) -> Result<Self, CesrError> {
         // Validate the key can be parsed
         match code {
-            SigningKeyCode::Secp256r1 => {
+            VerificationKeyCode::Secp256r1 => {
                 if raw.len() != 33 {
                     return Err(CesrError::InvalidLength {
                         expected: 33,
@@ -44,7 +44,7 @@ impl PublicKey {
                 P256VerifyingKey::from_sec1_bytes(&raw)
                     .map_err(|e| CesrError::CryptoError(e.to_string()))?;
             }
-            SigningKeyCode::MlDsa65 => {
+            VerificationKeyCode::MlDsa65 => {
                 if raw.len() != 1952 {
                     return Err(CesrError::InvalidLength {
                         expected: 1952,
@@ -58,7 +58,7 @@ impl PublicKey {
                 ml_dsa_65::PublicKey::try_from_bytes(bytes)
                     .map_err(|e| CesrError::CryptoError(e.to_string()))?;
             }
-            SigningKeyCode::MlDsa87 => {
+            VerificationKeyCode::MlDsa87 => {
                 if raw.len() != 2592 {
                     return Err(CesrError::InvalidLength {
                         expected: 2592,
@@ -77,14 +77,14 @@ impl PublicKey {
     }
 
     /// Get the key algorithm
-    pub fn algorithm(&self) -> SigningKeyCode {
+    pub fn algorithm(&self) -> VerificationKeyCode {
         self.code
     }
 
     /// Verify a signature over a message
     pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), CesrError> {
         match self.code {
-            SigningKeyCode::Secp256r1 => {
+            VerificationKeyCode::Secp256r1 => {
                 let verifying_key = P256VerifyingKey::from_sec1_bytes(&self.raw)
                     .map_err(|e| CesrError::CryptoError(e.to_string()))?;
                 let sig = P256Sig::from_slice(signature.raw())
@@ -93,7 +93,7 @@ impl PublicKey {
                     .verify(message, &sig)
                     .map_err(|_| CesrError::VerificationFailed)
             }
-            SigningKeyCode::MlDsa65 => {
+            VerificationKeyCode::MlDsa65 => {
                 let pk_bytes: [u8; 1952] = self
                     .raw
                     .as_slice()
@@ -111,7 +111,7 @@ impl PublicKey {
                     Err(CesrError::VerificationFailed)
                 }
             }
-            SigningKeyCode::MlDsa87 => {
+            VerificationKeyCode::MlDsa87 => {
                 let pk_bytes: [u8; 2592] = self
                     .raw
                     .as_slice()
@@ -144,9 +144,9 @@ impl Matter for PublicKey {
 
     fn qb64(&self) -> String {
         let (pad_bytes, code_str) = match self.code {
-            SigningKeyCode::Secp256r1 => (3, "1AAJ"),
-            SigningKeyCode::MlDsa65 => (1, "b"),
-            SigningKeyCode::MlDsa87 => (3, "1AAK"),
+            VerificationKeyCode::Secp256r1 => (3, "1AAC"),
+            VerificationKeyCode::MlDsa65 => (1, "Q"),
+            VerificationKeyCode::MlDsa87 => (3, "1AAU"),
         };
         let mut padded = vec![0u8; pad_bytes];
         padded.extend_from_slice(&self.raw);
@@ -155,7 +155,7 @@ impl Matter for PublicKey {
     }
 
     fn from_qb64(qb64: &str) -> Result<Self, CesrError> {
-        let code = SigningKeyCode::detect(qb64)?;
+        let code = VerificationKeyCode::detect(qb64)?;
 
         if qb64.len() != code.qb64_size() {
             return Err(CesrError::InvalidLength {
@@ -165,9 +165,9 @@ impl Matter for PublicKey {
         }
 
         let (pad_str, skip_bytes) = match code {
-            SigningKeyCode::Secp256r1 => ("AAAA", 3usize),
-            SigningKeyCode::MlDsa65 => ("A", 1usize),
-            SigningKeyCode::MlDsa87 => ("AAAA", 3usize),
+            VerificationKeyCode::Secp256r1 => ("AAAA", 3usize),
+            VerificationKeyCode::MlDsa65 => ("A", 1usize),
+            VerificationKeyCode::MlDsa87 => ("AAAA", 3usize),
         };
 
         let to_decode = format!("{}{}", pad_str, &qb64[code.code_size()..]);
@@ -230,7 +230,7 @@ impl PrivateKey {
                 // Compressed SEC1 encoding
                 let raw = vk.to_encoded_point(true).as_bytes().to_vec();
                 PublicKey {
-                    code: SigningKeyCode::Secp256r1,
+                    code: VerificationKeyCode::Secp256r1,
                     raw,
                 }
             }
@@ -238,7 +238,7 @@ impl PrivateKey {
                 let (pk, _sk) = ml_dsa_65::KG::keygen_from_seed(seed);
                 let raw = pk.into_bytes().to_vec();
                 PublicKey {
-                    code: SigningKeyCode::MlDsa65,
+                    code: VerificationKeyCode::MlDsa65,
                     raw,
                 }
             }
@@ -246,7 +246,7 @@ impl PrivateKey {
                 let (pk, _sk) = ml_dsa_87::KG::keygen_from_seed(seed);
                 let raw = pk.into_bytes().to_vec();
                 PublicKey {
-                    code: SigningKeyCode::MlDsa87,
+                    code: VerificationKeyCode::MlDsa87,
                     raw,
                 }
             }
@@ -278,11 +278,11 @@ impl PrivateKey {
     }
 
     /// Get the algorithm
-    pub fn algorithm(&self) -> SigningKeyCode {
+    pub fn algorithm(&self) -> VerificationKeyCode {
         match self {
-            PrivateKey::Secp256r1(_) => SigningKeyCode::Secp256r1,
-            PrivateKey::MlDsa65(_) => SigningKeyCode::MlDsa65,
-            PrivateKey::MlDsa87(_) => SigningKeyCode::MlDsa87,
+            PrivateKey::Secp256r1(_) => VerificationKeyCode::Secp256r1,
+            PrivateKey::MlDsa65(_) => VerificationKeyCode::MlDsa65,
+            PrivateKey::MlDsa87(_) => VerificationKeyCode::MlDsa87,
         }
     }
 
@@ -295,21 +295,21 @@ impl PrivateKey {
     }
 
     /// Import from raw bytes
-    pub fn from_bytes(code: SigningKeyCode, bytes: &[u8]) -> Result<Self, CesrError> {
+    pub fn from_bytes(code: VerificationKeyCode, bytes: &[u8]) -> Result<Self, CesrError> {
         match code {
-            SigningKeyCode::Secp256r1 => {
+            VerificationKeyCode::Secp256r1 => {
                 let sk = P256SigningKey::from_slice(bytes)
                     .map_err(|e| CesrError::CryptoError(e.to_string()))?;
                 Ok(PrivateKey::Secp256r1(sk))
             }
-            SigningKeyCode::MlDsa65 => {
+            VerificationKeyCode::MlDsa65 => {
                 let seed: [u8; 32] = bytes.try_into().map_err(|_| CesrError::InvalidLength {
                     expected: 32,
                     actual: bytes.len(),
                 })?;
                 Ok(PrivateKey::MlDsa65(seed))
             }
-            SigningKeyCode::MlDsa87 => {
+            VerificationKeyCode::MlDsa87 => {
                 let seed: [u8; 32] = bytes.try_into().map_err(|_| CesrError::InvalidLength {
                     expected: 32,
                     actual: bytes.len(),
@@ -328,16 +328,16 @@ impl PrivateKey {
         padded.extend_from_slice(&raw);
         let encoded = b64_encode(&padded);
         let code = match self {
-            PrivateKey::Secp256r1(_) => "Q",
-            PrivateKey::MlDsa65(_) => "c",
-            PrivateKey::MlDsa87(_) => "f",
+            PrivateKey::Secp256r1(_) => "c",
+            PrivateKey::MlDsa65(_) => "q",
+            PrivateKey::MlDsa87(_) => "u",
         };
         format!("{}{}", code, &encoded[1..])
     }
 
     /// Decode from qualified Base64 (qb64)
     pub fn from_qb64(qb64: &str) -> Result<Self, CesrError> {
-        let code = SeedCode::detect(qb64)?;
+        let code = SigningKeySeedCode::detect(qb64)?;
 
         if qb64.len() != code.qb64_size() {
             return Err(CesrError::InvalidLength {
@@ -352,9 +352,9 @@ impl PrivateKey {
         let raw = decoded[1..].to_vec();
 
         match code {
-            SeedCode::Secp256r1 => PrivateKey::from_bytes(SigningKeyCode::Secp256r1, &raw),
-            SeedCode::MlDsa65 => PrivateKey::from_bytes(SigningKeyCode::MlDsa65, &raw),
-            SeedCode::MlDsa87 => PrivateKey::from_bytes(SigningKeyCode::MlDsa87, &raw),
+            SigningKeySeedCode::Secp256r1 => PrivateKey::from_bytes(VerificationKeyCode::Secp256r1, &raw),
+            SigningKeySeedCode::MlDsa65 => PrivateKey::from_bytes(VerificationKeyCode::MlDsa65, &raw),
+            SigningKeySeedCode::MlDsa87 => PrivateKey::from_bytes(VerificationKeyCode::MlDsa87, &raw),
         }
     }
 }
@@ -402,16 +402,16 @@ mod tests {
     #[test]
     fn test_secp256r1_generate() {
         let (public, private) = generate_secp256r1().unwrap();
-        assert_eq!(public.algorithm(), SigningKeyCode::Secp256r1);
+        assert_eq!(public.algorithm(), VerificationKeyCode::Secp256r1);
         assert_eq!(public.raw().len(), 33); // Compressed
-        assert_eq!(private.algorithm(), SigningKeyCode::Secp256r1);
+        assert_eq!(private.algorithm(), VerificationKeyCode::Secp256r1);
     }
 
     #[test]
     fn test_secp256r1_qb64() {
         let (public, _) = generate_secp256r1().unwrap();
         let qb64 = public.qb64();
-        assert!(qb64.starts_with("1AAJ"));
+        assert!(qb64.starts_with("1AAC"));
         assert_eq!(qb64.len(), 48);
 
         let parsed = PublicKey::from_qb64(&qb64).unwrap();
@@ -433,7 +433,7 @@ mod tests {
         let (original_public, original_private) = generate_secp256r1().unwrap();
         let bytes = original_private.to_bytes();
 
-        let imported_private = PrivateKey::from_bytes(SigningKeyCode::Secp256r1, &bytes).unwrap();
+        let imported_private = PrivateKey::from_bytes(VerificationKeyCode::Secp256r1, &bytes).unwrap();
         let imported_public = imported_private.public_key();
 
         assert_eq!(original_public, imported_public);
@@ -442,16 +442,16 @@ mod tests {
     #[test]
     fn test_ml_dsa_65_generate() {
         let (public, private) = generate_ml_dsa_65().unwrap();
-        assert_eq!(public.algorithm(), SigningKeyCode::MlDsa65);
+        assert_eq!(public.algorithm(), VerificationKeyCode::MlDsa65);
         assert_eq!(public.raw().len(), 1952);
-        assert_eq!(private.algorithm(), SigningKeyCode::MlDsa65);
+        assert_eq!(private.algorithm(), VerificationKeyCode::MlDsa65);
     }
 
     #[test]
     fn test_ml_dsa_65_qb64() {
         let (public, _) = generate_ml_dsa_65().unwrap();
         let qb64 = public.qb64();
-        assert!(qb64.starts_with('b'));
+        assert!(qb64.starts_with('Q'));
         assert_eq!(qb64.len(), 2604);
 
         let parsed = PublicKey::from_qb64(&qb64).unwrap();
@@ -474,7 +474,7 @@ mod tests {
         let bytes = original_private.to_bytes();
         assert_eq!(bytes.len(), 32);
 
-        let imported_private = PrivateKey::from_bytes(SigningKeyCode::MlDsa65, &bytes).unwrap();
+        let imported_private = PrivateKey::from_bytes(VerificationKeyCode::MlDsa65, &bytes).unwrap();
         let imported_public = imported_private.public_key();
 
         assert_eq!(original_public, imported_public);
@@ -484,7 +484,7 @@ mod tests {
     fn test_ml_dsa_65_private_key_qb64() {
         let (_, private) = generate_ml_dsa_65().unwrap();
         let qb64 = private.qb64();
-        assert!(qb64.starts_with('c'));
+        assert!(qb64.starts_with('q'));
         assert_eq!(qb64.len(), 44);
 
         let parsed = PrivateKey::from_qb64(&qb64).unwrap();
@@ -494,16 +494,16 @@ mod tests {
     #[test]
     fn test_ml_dsa_87_generate() {
         let (public, private) = generate_ml_dsa_87().unwrap();
-        assert_eq!(public.algorithm(), SigningKeyCode::MlDsa87);
+        assert_eq!(public.algorithm(), VerificationKeyCode::MlDsa87);
         assert_eq!(public.raw().len(), 2592);
-        assert_eq!(private.algorithm(), SigningKeyCode::MlDsa87);
+        assert_eq!(private.algorithm(), VerificationKeyCode::MlDsa87);
     }
 
     #[test]
     fn test_ml_dsa_87_qb64() {
         let (public, _) = generate_ml_dsa_87().unwrap();
         let qb64 = public.qb64();
-        assert!(qb64.starts_with("1AAK"));
+        assert!(qb64.starts_with("1AAU"));
         assert_eq!(qb64.len(), 3460);
 
         let parsed = PublicKey::from_qb64(&qb64).unwrap();
@@ -526,7 +526,7 @@ mod tests {
         let bytes = original_private.to_bytes();
         assert_eq!(bytes.len(), 32);
 
-        let imported_private = PrivateKey::from_bytes(SigningKeyCode::MlDsa87, &bytes).unwrap();
+        let imported_private = PrivateKey::from_bytes(VerificationKeyCode::MlDsa87, &bytes).unwrap();
         let imported_public = imported_private.public_key();
 
         assert_eq!(original_public, imported_public);
@@ -536,7 +536,7 @@ mod tests {
     fn test_ml_dsa_87_private_key_qb64() {
         let (_, private) = generate_ml_dsa_87().unwrap();
         let qb64 = private.qb64();
-        assert!(qb64.starts_with('f'));
+        assert!(qb64.starts_with('u'));
         assert_eq!(qb64.len(), 44);
 
         let parsed = PrivateKey::from_qb64(&qb64).unwrap();

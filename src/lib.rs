@@ -25,7 +25,7 @@ mod signature;
 
 pub use base64::{b64_decode, b64_encode};
 pub use codes::{
-    DigestCode, KemCiphertextCode, KemKeyCode, SeedCode, SignatureCode, SigningKeyCode,
+    DigestCode, KemCiphertextCode, KemKeyCode, SigningKeySeedCode, SignatureCode, VerificationKeyCode,
 };
 pub use digest::Digest;
 pub use error::CesrError;
@@ -50,7 +50,7 @@ mod tests {
 
         // Should start with 'E' code
         let qb64 = digest.qb64();
-        assert!(qb64.starts_with('E'));
+        assert!(qb64.starts_with('K'));
         assert_eq!(qb64.len(), 44); // 1 code + 43 base64
 
         // Verify roundtrip
@@ -77,9 +77,9 @@ mod tests {
     fn test_secp256r1_private_key_qb64() {
         let (_, private) = keys::generate_secp256r1().unwrap();
 
-        // Private key seed should start with 'Q'
+        // Private key seed should start with 'c'
         let qb64 = private.qb64();
-        assert!(qb64.starts_with('Q'));
+        assert!(qb64.starts_with('c'));
         assert_eq!(qb64.len(), 44);
 
         // Roundtrip
@@ -91,9 +91,9 @@ mod tests {
     fn test_ml_dsa_65_keypair() {
         let (public, private) = keys::generate_ml_dsa_65().unwrap();
 
-        // Public key should start with 'b'
+        // Public key should start with 'Q'
         let pub_qb64 = public.qb64();
-        assert!(pub_qb64.starts_with('b'));
+        assert!(pub_qb64.starts_with('Q'));
         assert_eq!(pub_qb64.len(), 2604);
 
         // Sign and verify
@@ -107,9 +107,9 @@ mod tests {
     fn test_ml_dsa_65_private_key_qb64() {
         let (_, private) = keys::generate_ml_dsa_65().unwrap();
 
-        // Private key seed should start with 'c'
+        // Private key seed should start with 'q'
         let qb64 = private.qb64();
-        assert!(qb64.starts_with('c'));
+        assert!(qb64.starts_with('q'));
         assert_eq!(qb64.len(), 44);
 
         // Roundtrip
@@ -121,9 +121,9 @@ mod tests {
     fn test_ml_dsa_87_keypair() {
         let (public, private) = keys::generate_ml_dsa_87().unwrap();
 
-        // Public key should start with '1AAK'
+        // Public key should start with '1AAU'
         let pub_qb64 = public.qb64();
-        assert!(pub_qb64.starts_with("1AAK"));
+        assert!(pub_qb64.starts_with("1AAU"));
         assert_eq!(pub_qb64.len(), 3460);
 
         // Sign and verify
@@ -137,9 +137,9 @@ mod tests {
     fn test_ml_dsa_87_private_key_qb64() {
         let (_, private) = keys::generate_ml_dsa_87().unwrap();
 
-        // Private key seed should start with 'f'
+        // Private key seed should start with 'u'
         let qb64 = private.qb64();
-        assert!(qb64.starts_with('f'));
+        assert!(qb64.starts_with('u'));
         assert_eq!(qb64.len(), 44);
 
         // Roundtrip

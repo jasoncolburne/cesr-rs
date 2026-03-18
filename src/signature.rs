@@ -1,7 +1,7 @@
 //! Cryptographic Signatures
 //!
 //! CESR signature primitives:
-//! - secp256r1: 64-byte signatures, 2-char code '0I' (64 % 3 == 1)
+//! - secp256r1: 64-byte signatures, 2-char code '0C' (64 % 3 == 1)
 //! - ML-DSA-65: 3309-byte signatures, 4-char code '1AAQ' (3309 % 3 == 0)
 
 use crate::base64::{b64_decode, b64_encode};
@@ -45,9 +45,9 @@ impl Matter for Signature {
 
     fn qb64(&self) -> String {
         let (pad_bytes, code_str) = match self.code {
-            SignatureCode::Secp256r1 => (2, "0I"),
+            SignatureCode::Secp256r1 => (2, "0C"),
             SignatureCode::MlDsa65 => (3, "1AAQ"),
-            SignatureCode::MlDsa87 => (2, "0J"),
+            SignatureCode::MlDsa87 => (2, "0U"),
         };
         let mut padded = vec![0u8; pad_bytes];
         padded.extend_from_slice(&self.raw);
@@ -122,7 +122,7 @@ mod tests {
         let sig = private.sign(b"test message").unwrap();
 
         let qb64 = sig.qb64();
-        assert!(qb64.starts_with("0I"));
+        assert!(qb64.starts_with("0C"));
         assert_eq!(qb64.len(), 88);
 
         let parsed = Signature::from_qb64(&qb64).unwrap();
@@ -148,7 +148,7 @@ mod tests {
         let sig = private.sign(b"test message").unwrap();
 
         let qb64 = sig.qb64();
-        assert!(qb64.starts_with("0J"));
+        assert!(qb64.starts_with("0U"));
         assert_eq!(qb64.len(), 6172);
 
         let parsed = Signature::from_qb64(&qb64).unwrap();
