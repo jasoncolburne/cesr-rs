@@ -16,7 +16,7 @@ impl DigestCode {
     /// CESR code character
     pub fn code(&self) -> &'static str {
         match self {
-            DigestCode::Blake3 => "E",
+            DigestCode::Blake3 => "K",
         }
     }
 
@@ -37,7 +37,7 @@ impl DigestCode {
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
-            "E" => Ok(DigestCode::Blake3),
+            "K" => Ok(DigestCode::Blake3),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
@@ -45,7 +45,7 @@ impl DigestCode {
 
 /// Signing public key algorithm codes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SigningKeyCode {
+pub enum VerificationKeyCode {
     /// secp256r1 (P-256) compressed public key (33 bytes)
     Secp256r1,
     /// ML-DSA-65 public key (1952 bytes)
@@ -54,22 +54,22 @@ pub enum SigningKeyCode {
     MlDsa87,
 }
 
-impl SigningKeyCode {
+impl VerificationKeyCode {
     /// CESR code string - transferable
     pub fn code(&self) -> &'static str {
         match self {
-            SigningKeyCode::Secp256r1 => "1AAJ",
-            SigningKeyCode::MlDsa65 => "b",
-            SigningKeyCode::MlDsa87 => "1AAK",
+            VerificationKeyCode::Secp256r1 => "1AAC",
+            VerificationKeyCode::MlDsa65 => "Q",
+            VerificationKeyCode::MlDsa87 => "1AAU",
         }
     }
 
     /// Raw key size in bytes
     pub fn raw_size(&self) -> usize {
         match self {
-            SigningKeyCode::Secp256r1 => 33, // Compressed point
-            SigningKeyCode::MlDsa65 => 1952,
-            SigningKeyCode::MlDsa87 => 2592,
+            VerificationKeyCode::Secp256r1 => 33, // Compressed point
+            VerificationKeyCode::MlDsa65 => 1952,
+            VerificationKeyCode::MlDsa87 => 2592,
         }
     }
 
@@ -81,18 +81,18 @@ impl SigningKeyCode {
     /// Full qb64 size
     pub fn qb64_size(&self) -> usize {
         match self {
-            SigningKeyCode::Secp256r1 => 48, // 4 + 44
-            SigningKeyCode::MlDsa65 => 2604, // 1 + 2603 (1953 bytes → 2604 base64 chars)
-            SigningKeyCode::MlDsa87 => 3460, // 4 + 3456 (2595 bytes → 3460 base64 chars)
+            VerificationKeyCode::Secp256r1 => 48, // 4 + 44
+            VerificationKeyCode::MlDsa65 => 2604, // 1 + 2603 (1953 bytes → 2604 base64 chars)
+            VerificationKeyCode::MlDsa87 => 3460, // 4 + 3456 (2595 bytes → 3460 base64 chars)
         }
     }
 
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
-            "1AAJ" => Ok(SigningKeyCode::Secp256r1),
-            "b" => Ok(SigningKeyCode::MlDsa65),
-            "1AAK" => Ok(SigningKeyCode::MlDsa87),
+            "1AAC" => Ok(VerificationKeyCode::Secp256r1),
+            "Q" => Ok(VerificationKeyCode::MlDsa65),
+            "1AAU" => Ok(VerificationKeyCode::MlDsa87),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
@@ -100,12 +100,12 @@ impl SigningKeyCode {
     /// Try to detect code from qb64 string start
     pub fn detect(qb64: &str) -> Result<Self, CesrError> {
         // Check multi-char codes first
-        if qb64.starts_with("1AAJ") {
-            Ok(SigningKeyCode::Secp256r1)
-        } else if qb64.starts_with("1AAK") {
-            Ok(SigningKeyCode::MlDsa87)
-        } else if qb64.starts_with('b') {
-            Ok(SigningKeyCode::MlDsa65)
+        if qb64.starts_with("1AAC") {
+            Ok(VerificationKeyCode::Secp256r1)
+        } else if qb64.starts_with("1AAU") {
+            Ok(VerificationKeyCode::MlDsa87)
+        } else if qb64.starts_with('Q') {
+            Ok(VerificationKeyCode::MlDsa65)
         } else {
             Err(CesrError::InvalidCode(
                 qb64.chars().take(4).collect::<String>(),
@@ -127,8 +127,8 @@ impl KemKeyCode {
     /// CESR code string
     pub fn code(&self) -> &'static str {
         match self {
-            KemKeyCode::MlKem768 => "d",
-            KemKeyCode::MlKem1024 => "g",
+            KemKeyCode::MlKem768 => "m",
+            KemKeyCode::MlKem1024 => "h",
         }
     }
 
@@ -156,17 +156,17 @@ impl KemKeyCode {
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
-            "d" => Ok(KemKeyCode::MlKem768),
-            "g" => Ok(KemKeyCode::MlKem1024),
+            "m" => Ok(KemKeyCode::MlKem768),
+            "h" => Ok(KemKeyCode::MlKem1024),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
 
     /// Try to detect code from qb64 string start
     pub fn detect(qb64: &str) -> Result<Self, CesrError> {
-        if qb64.starts_with('d') {
+        if qb64.starts_with('m') {
             Ok(KemKeyCode::MlKem768)
-        } else if qb64.starts_with('g') {
+        } else if qb64.starts_with('h') {
             Ok(KemKeyCode::MlKem1024)
         } else {
             Err(CesrError::InvalidCode(
@@ -189,8 +189,8 @@ impl KemCiphertextCode {
     /// CESR code string
     pub fn code(&self) -> &'static str {
         match self {
-            KemCiphertextCode::MlKem768 => "e",
-            KemCiphertextCode::MlKem1024 => "h",
+            KemCiphertextCode::MlKem768 => "M",
+            KemCiphertextCode::MlKem1024 => "H",
         }
     }
 
@@ -218,17 +218,17 @@ impl KemCiphertextCode {
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
-            "e" => Ok(KemCiphertextCode::MlKem768),
-            "h" => Ok(KemCiphertextCode::MlKem1024),
+            "M" => Ok(KemCiphertextCode::MlKem768),
+            "H" => Ok(KemCiphertextCode::MlKem1024),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
 
     /// Try to detect code from qb64 string start
     pub fn detect(qb64: &str) -> Result<Self, CesrError> {
-        if qb64.starts_with('e') {
+        if qb64.starts_with('M') {
             Ok(KemCiphertextCode::MlKem768)
-        } else if qb64.starts_with('h') {
+        } else if qb64.starts_with('H') {
             Ok(KemCiphertextCode::MlKem1024)
         } else {
             Err(CesrError::InvalidCode(
@@ -240,7 +240,7 @@ impl KemCiphertextCode {
 
 /// Private key seed codes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SeedCode {
+pub enum SigningKeySeedCode {
     /// secp256r1 (P-256) seed (32 bytes)
     Secp256r1,
     /// ML-DSA-65 seed (32 bytes)
@@ -249,13 +249,13 @@ pub enum SeedCode {
     MlDsa87,
 }
 
-impl SeedCode {
+impl SigningKeySeedCode {
     /// CESR code string
     pub fn code(&self) -> &'static str {
         match self {
-            SeedCode::Secp256r1 => "Q",
-            SeedCode::MlDsa65 => "c",
-            SeedCode::MlDsa87 => "f",
+            SigningKeySeedCode::Secp256r1 => "c",
+            SigningKeySeedCode::MlDsa65 => "q",
+            SigningKeySeedCode::MlDsa87 => "u",
         }
     }
 
@@ -272,21 +272,21 @@ impl SeedCode {
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
-            "Q" => Ok(SeedCode::Secp256r1),
-            "c" => Ok(SeedCode::MlDsa65),
-            "f" => Ok(SeedCode::MlDsa87),
+            "c" => Ok(SigningKeySeedCode::Secp256r1),
+            "q" => Ok(SigningKeySeedCode::MlDsa65),
+            "u" => Ok(SigningKeySeedCode::MlDsa87),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
 
     /// Try to detect code from qb64 string start
     pub fn detect(qb64: &str) -> Result<Self, CesrError> {
-        if qb64.starts_with('Q') {
-            Ok(SeedCode::Secp256r1)
-        } else if qb64.starts_with('c') {
-            Ok(SeedCode::MlDsa65)
-        } else if qb64.starts_with('f') {
-            Ok(SeedCode::MlDsa87)
+        if qb64.starts_with('c') {
+            Ok(SigningKeySeedCode::Secp256r1)
+        } else if qb64.starts_with('q') {
+            Ok(SigningKeySeedCode::MlDsa65)
+        } else if qb64.starts_with('u') {
+            Ok(SigningKeySeedCode::MlDsa87)
         } else {
             Err(CesrError::InvalidCode(
                 qb64.chars().take(1).collect::<String>(),
@@ -310,9 +310,9 @@ impl SignatureCode {
     /// CESR code string
     pub fn code(&self) -> &'static str {
         match self {
-            SignatureCode::Secp256r1 => "0I",
+            SignatureCode::Secp256r1 => "0C",
             SignatureCode::MlDsa65 => "1AAQ",
-            SignatureCode::MlDsa87 => "0J",
+            SignatureCode::MlDsa87 => "0U",
         }
     }
 
@@ -342,9 +342,9 @@ impl SignatureCode {
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
-            "0I" => Ok(SignatureCode::Secp256r1),
+            "0C" => Ok(SignatureCode::Secp256r1),
             "1AAQ" => Ok(SignatureCode::MlDsa65),
-            "0J" => Ok(SignatureCode::MlDsa87),
+            "0U" => Ok(SignatureCode::MlDsa87),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
@@ -354,9 +354,9 @@ impl SignatureCode {
         // Check 4-char codes before 2-char codes
         if qb64.starts_with("1AAQ") {
             Ok(SignatureCode::MlDsa65)
-        } else if qb64.starts_with("0I") {
+        } else if qb64.starts_with("0C") {
             Ok(SignatureCode::Secp256r1)
-        } else if qb64.starts_with("0J") {
+        } else if qb64.starts_with("0U") {
             Ok(SignatureCode::MlDsa87)
         } else {
             Err(CesrError::InvalidCode(
@@ -372,51 +372,51 @@ mod tests {
 
     #[test]
     fn test_digest_codes() {
-        assert_eq!(DigestCode::Blake3.code(), "E");
+        assert_eq!(DigestCode::Blake3.code(), "K");
         assert_eq!(DigestCode::Blake3.raw_size(), 32);
         assert_eq!(DigestCode::Blake3.qb64_size(), 44);
     }
 
     #[test]
     fn test_signing_key_codes() {
-        assert_eq!(SigningKeyCode::Secp256r1.code(), "1AAJ");
-        assert_eq!(SigningKeyCode::Secp256r1.raw_size(), 33);
-        assert_eq!(SigningKeyCode::Secp256r1.qb64_size(), 48);
+        assert_eq!(VerificationKeyCode::Secp256r1.code(), "1AAC");
+        assert_eq!(VerificationKeyCode::Secp256r1.raw_size(), 33);
+        assert_eq!(VerificationKeyCode::Secp256r1.qb64_size(), 48);
 
-        assert_eq!(SigningKeyCode::MlDsa65.code(), "b");
-        assert_eq!(SigningKeyCode::MlDsa65.raw_size(), 1952);
-        assert_eq!(SigningKeyCode::MlDsa65.qb64_size(), 2604);
+        assert_eq!(VerificationKeyCode::MlDsa65.code(), "Q");
+        assert_eq!(VerificationKeyCode::MlDsa65.raw_size(), 1952);
+        assert_eq!(VerificationKeyCode::MlDsa65.qb64_size(), 2604);
 
-        assert_eq!(SigningKeyCode::MlDsa87.code(), "1AAK");
-        assert_eq!(SigningKeyCode::MlDsa87.raw_size(), 2592);
-        assert_eq!(SigningKeyCode::MlDsa87.qb64_size(), 3460);
+        assert_eq!(VerificationKeyCode::MlDsa87.code(), "1AAU");
+        assert_eq!(VerificationKeyCode::MlDsa87.raw_size(), 2592);
+        assert_eq!(VerificationKeyCode::MlDsa87.qb64_size(), 3460);
     }
 
     #[test]
     fn test_kem_key_codes() {
-        assert_eq!(KemKeyCode::MlKem768.code(), "d");
+        assert_eq!(KemKeyCode::MlKem768.code(), "m");
         assert_eq!(KemKeyCode::MlKem768.raw_size(), 1184);
         assert_eq!(KemKeyCode::MlKem768.qb64_size(), 1580);
 
-        assert_eq!(KemKeyCode::MlKem1024.code(), "g");
+        assert_eq!(KemKeyCode::MlKem1024.code(), "h");
         assert_eq!(KemKeyCode::MlKem1024.raw_size(), 1568);
         assert_eq!(KemKeyCode::MlKem1024.qb64_size(), 2092);
     }
 
     #[test]
     fn test_kem_ciphertext_codes() {
-        assert_eq!(KemCiphertextCode::MlKem768.code(), "e");
+        assert_eq!(KemCiphertextCode::MlKem768.code(), "M");
         assert_eq!(KemCiphertextCode::MlKem768.raw_size(), 1088);
         assert_eq!(KemCiphertextCode::MlKem768.qb64_size(), 1452);
 
-        assert_eq!(KemCiphertextCode::MlKem1024.code(), "h");
+        assert_eq!(KemCiphertextCode::MlKem1024.code(), "H");
         assert_eq!(KemCiphertextCode::MlKem1024.raw_size(), 1568);
         assert_eq!(KemCiphertextCode::MlKem1024.qb64_size(), 2092);
     }
 
     #[test]
     fn test_signature_codes() {
-        assert_eq!(SignatureCode::Secp256r1.code(), "0I");
+        assert_eq!(SignatureCode::Secp256r1.code(), "0C");
         assert_eq!(SignatureCode::Secp256r1.raw_size(), 64);
         assert_eq!(SignatureCode::Secp256r1.qb64_size(), 88);
 
@@ -424,51 +424,51 @@ mod tests {
         assert_eq!(SignatureCode::MlDsa65.raw_size(), 3309);
         assert_eq!(SignatureCode::MlDsa65.qb64_size(), 4416);
 
-        assert_eq!(SignatureCode::MlDsa87.code(), "0J");
+        assert_eq!(SignatureCode::MlDsa87.code(), "0U");
         assert_eq!(SignatureCode::MlDsa87.raw_size(), 4627);
         assert_eq!(SignatureCode::MlDsa87.qb64_size(), 6172);
     }
 
     #[test]
     fn test_seed_codes() {
-        assert_eq!(SeedCode::Secp256r1.code(), "Q");
-        assert_eq!(SeedCode::Secp256r1.raw_size(), 32);
-        assert_eq!(SeedCode::Secp256r1.qb64_size(), 44);
+        assert_eq!(SigningKeySeedCode::Secp256r1.code(), "c");
+        assert_eq!(SigningKeySeedCode::Secp256r1.raw_size(), 32);
+        assert_eq!(SigningKeySeedCode::Secp256r1.qb64_size(), 44);
 
-        assert_eq!(SeedCode::MlDsa65.code(), "c");
-        assert_eq!(SeedCode::MlDsa65.raw_size(), 32);
-        assert_eq!(SeedCode::MlDsa65.qb64_size(), 44);
+        assert_eq!(SigningKeySeedCode::MlDsa65.code(), "q");
+        assert_eq!(SigningKeySeedCode::MlDsa65.raw_size(), 32);
+        assert_eq!(SigningKeySeedCode::MlDsa65.qb64_size(), 44);
 
-        assert_eq!(SeedCode::MlDsa87.code(), "f");
-        assert_eq!(SeedCode::MlDsa87.raw_size(), 32);
-        assert_eq!(SeedCode::MlDsa87.qb64_size(), 44);
+        assert_eq!(SigningKeySeedCode::MlDsa87.code(), "u");
+        assert_eq!(SigningKeySeedCode::MlDsa87.raw_size(), 32);
+        assert_eq!(SigningKeySeedCode::MlDsa87.qb64_size(), 44);
     }
 
     #[test]
     fn test_signing_key_code_detect() {
         assert_eq!(
-            SigningKeyCode::detect("1AAJsomething").unwrap(),
-            SigningKeyCode::Secp256r1
+            VerificationKeyCode::detect("1AACsomething").unwrap(),
+            VerificationKeyCode::Secp256r1
         );
         assert_eq!(
-            SigningKeyCode::detect("1AAKsomething").unwrap(),
-            SigningKeyCode::MlDsa87
+            VerificationKeyCode::detect("1AAUsomething").unwrap(),
+            VerificationKeyCode::MlDsa87
         );
         assert_eq!(
-            SigningKeyCode::detect("bsomething").unwrap(),
-            SigningKeyCode::MlDsa65
+            VerificationKeyCode::detect("Qsomething").unwrap(),
+            VerificationKeyCode::MlDsa65
         );
-        assert!(SigningKeyCode::detect("Xsomething").is_err());
+        assert!(VerificationKeyCode::detect("Xsomething").is_err());
     }
 
     #[test]
     fn test_kem_key_code_detect() {
         assert_eq!(
-            KemKeyCode::detect("dsomething").unwrap(),
+            KemKeyCode::detect("msomething").unwrap(),
             KemKeyCode::MlKem768
         );
         assert_eq!(
-            KemKeyCode::detect("gsomething").unwrap(),
+            KemKeyCode::detect("hsomething").unwrap(),
             KemKeyCode::MlKem1024
         );
         assert!(KemKeyCode::detect("Xsomething").is_err());
@@ -477,11 +477,11 @@ mod tests {
     #[test]
     fn test_kem_ciphertext_code_detect() {
         assert_eq!(
-            KemCiphertextCode::detect("esomething").unwrap(),
+            KemCiphertextCode::detect("Msomething").unwrap(),
             KemCiphertextCode::MlKem768
         );
         assert_eq!(
-            KemCiphertextCode::detect("hsomething").unwrap(),
+            KemCiphertextCode::detect("Hsomething").unwrap(),
             KemCiphertextCode::MlKem1024
         );
         assert!(KemCiphertextCode::detect("Xsomething").is_err());
@@ -490,7 +490,7 @@ mod tests {
     #[test]
     fn test_signature_code_detect() {
         assert_eq!(
-            SignatureCode::detect("0Isomething").unwrap(),
+            SignatureCode::detect("0Csomething").unwrap(),
             SignatureCode::Secp256r1
         );
         assert_eq!(
@@ -498,7 +498,7 @@ mod tests {
             SignatureCode::MlDsa65
         );
         assert_eq!(
-            SignatureCode::detect("0Jsomething").unwrap(),
+            SignatureCode::detect("0Usomething").unwrap(),
             SignatureCode::MlDsa87
         );
         assert!(SignatureCode::detect("XXsomething").is_err());
@@ -506,9 +506,9 @@ mod tests {
 
     #[test]
     fn test_seed_code_detect() {
-        assert_eq!(SeedCode::detect("Qsomething").unwrap(), SeedCode::Secp256r1);
-        assert_eq!(SeedCode::detect("csomething").unwrap(), SeedCode::MlDsa65);
-        assert_eq!(SeedCode::detect("fsomething").unwrap(), SeedCode::MlDsa87);
-        assert!(SeedCode::detect("Xsomething").is_err());
+        assert_eq!(SigningKeySeedCode::detect("csomething").unwrap(), SigningKeySeedCode::Secp256r1);
+        assert_eq!(SigningKeySeedCode::detect("qsomething").unwrap(), SigningKeySeedCode::MlDsa65);
+        assert_eq!(SigningKeySeedCode::detect("usomething").unwrap(), SigningKeySeedCode::MlDsa87);
+        assert!(SigningKeySeedCode::detect("Xsomething").is_err());
     }
 }

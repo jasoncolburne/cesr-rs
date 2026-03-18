@@ -157,7 +157,7 @@ mod tests {
         let digest = Digest::blake3_256(data);
 
         let qb64 = digest.qb64();
-        assert!(qb64.starts_with('E'));
+        assert!(qb64.starts_with('K'));
         assert_eq!(qb64.len(), 44);
 
         let parsed = Digest::from_qb64(&qb64).unwrap();

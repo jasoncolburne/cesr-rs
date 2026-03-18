@@ -1,8 +1,8 @@
 //! KEM Primitives
 //!
 //! CESR KEM primitives for key encapsulation:
-//! - ML-KEM-768: 1184-byte encapsulation keys, 1-char code 'd' (1184 % 3 == 2)
-//! - ML-KEM-768: 1088-byte ciphertexts, 1-char code 'e' (1088 % 3 == 2)
+//! - ML-KEM-768: 1184-byte encapsulation keys, 1-char code 'm' (1184 % 3 == 2)
+//! - ML-KEM-768: 1088-byte ciphertexts, 1-char code 'M' (1088 % 3 == 2)
 
 use fips203::traits::{
     Decaps as FipsDecaps, Encaps as FipsEncaps, KeyGen as FipsKemKeyGen, SerDes as FipsKemSerDes,
@@ -314,7 +314,7 @@ mod tests {
         assert_eq!(public.raw().len(), 1184);
 
         let qb64 = public.qb64();
-        assert!(qb64.starts_with('d'));
+        assert!(qb64.starts_with('m'));
         assert_eq!(qb64.len(), 1580);
 
         let parsed = KemPublicKey::from_qb64(&qb64).unwrap();
@@ -333,7 +333,7 @@ mod tests {
         let (ct, _ss) = public.encapsulate().unwrap();
 
         let qb64 = ct.qb64();
-        assert!(qb64.starts_with('e'));
+        assert!(qb64.starts_with('M'));
         assert_eq!(qb64.len(), 1452);
 
         let parsed = KemCiphertext::from_qb64(&qb64).unwrap();
@@ -369,7 +369,7 @@ mod tests {
         assert_eq!(public.raw().len(), 1568);
 
         let qb64 = public.qb64();
-        assert!(qb64.starts_with('g'));
+        assert!(qb64.starts_with('h'));
         assert_eq!(qb64.len(), 2092);
 
         let parsed = KemPublicKey::from_qb64(&qb64).unwrap();
@@ -382,7 +382,7 @@ mod tests {
         let (ct, _ss) = public.encapsulate().unwrap();
 
         let qb64 = ct.qb64();
-        assert!(qb64.starts_with('h'));
+        assert!(qb64.starts_with('H'));
         assert_eq!(qb64.len(), 2092);
 
         let parsed = KemCiphertext::from_qb64(&qb64).unwrap();
