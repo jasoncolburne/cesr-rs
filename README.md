@@ -1,6 +1,6 @@
 # cesr-rs
 
-A concise Rust implementation of [CESR](https://weboftrust.github.io/ietf-cesr/draft-ssmith-cesr.html) (Composable Event Streaming Representation) with a custom code table designed for use in Key Event Logs (KELs).
+A concise Rust implementation of [CESR](https://weboftrust.github.io/ietf-cesr/draft-ssmith-cesr.html) (Composable Event Streaming Representation) with a custom code table designed for use in KELS.
 
 ## Custom Code Table
 
