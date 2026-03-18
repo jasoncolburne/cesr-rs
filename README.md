@@ -23,7 +23,7 @@ Base letter mnemonics:
 - **q** — quantum (post-quantum, standard security)
 - **u** — upper-tier quantum (post-quantum, high security)
 - **m** / **h** — medium / high strength KEM
-- **K** — KERI (KEL digests)
+- **K** — [KELS](https://github.com/jasoncolburne/kels) digests
 
 Multi-character codes (`1AAC`, `1AAU`, `0C`, `0U`, `1AAQ`) preserve the base letter as the distinguishing character while satisfying CESR's 24-bit alignment requirements based on raw primitive size.
 
