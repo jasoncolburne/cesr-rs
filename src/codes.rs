@@ -6,7 +6,7 @@
 use crate::error::CesrError;
 
 /// Digest algorithm codes (1-character codes)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum DigestCode {
     /// Blake3-256 (32 bytes)
     Blake3,
@@ -44,7 +44,7 @@ impl DigestCode {
 }
 
 /// Signing public key algorithm codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum VerificationKeyCode {
     /// secp256r1 (P-256) compressed public key (33 bytes)
     Secp256r1,
@@ -115,7 +115,7 @@ impl VerificationKeyCode {
 }
 
 /// KEM encapsulation key codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum KemKeyCode {
     /// ML-KEM-768 encapsulation key (1184 bytes)
     MlKem768,
@@ -177,7 +177,7 @@ impl KemKeyCode {
 }
 
 /// KEM ciphertext codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum KemCiphertextCode {
     /// ML-KEM-768 ciphertext (1088 bytes)
     MlKem768,
@@ -239,7 +239,7 @@ impl KemCiphertextCode {
 }
 
 /// Private key seed codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SigningKeySeedCode {
     /// secp256r1 (P-256) seed (32 bytes)
     Secp256r1,
@@ -296,7 +296,7 @@ impl SigningKeySeedCode {
 }
 
 /// Signature algorithm codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SignatureCode {
     /// secp256r1 (P-256) ECDSA signature (64 bytes)
     Secp256r1,
@@ -506,9 +506,18 @@ mod tests {
 
     #[test]
     fn test_seed_code_detect() {
-        assert_eq!(SigningKeySeedCode::detect("csomething").unwrap(), SigningKeySeedCode::Secp256r1);
-        assert_eq!(SigningKeySeedCode::detect("qsomething").unwrap(), SigningKeySeedCode::MlDsa65);
-        assert_eq!(SigningKeySeedCode::detect("usomething").unwrap(), SigningKeySeedCode::MlDsa87);
+        assert_eq!(
+            SigningKeySeedCode::detect("csomething").unwrap(),
+            SigningKeySeedCode::Secp256r1
+        );
+        assert_eq!(
+            SigningKeySeedCode::detect("qsomething").unwrap(),
+            SigningKeySeedCode::MlDsa65
+        );
+        assert_eq!(
+            SigningKeySeedCode::detect("usomething").unwrap(),
+            SigningKeySeedCode::MlDsa87
+        );
         assert!(SigningKeySeedCode::detect("Xsomething").is_err());
     }
 }
