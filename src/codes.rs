@@ -506,9 +506,18 @@ mod tests {
 
     #[test]
     fn test_seed_code_detect() {
-        assert_eq!(SigningKeySeedCode::detect("csomething").unwrap(), SigningKeySeedCode::Secp256r1);
-        assert_eq!(SigningKeySeedCode::detect("qsomething").unwrap(), SigningKeySeedCode::MlDsa65);
-        assert_eq!(SigningKeySeedCode::detect("usomething").unwrap(), SigningKeySeedCode::MlDsa87);
+        assert_eq!(
+            SigningKeySeedCode::detect("csomething").unwrap(),
+            SigningKeySeedCode::Secp256r1
+        );
+        assert_eq!(
+            SigningKeySeedCode::detect("qsomething").unwrap(),
+            SigningKeySeedCode::MlDsa65
+        );
+        assert_eq!(
+            SigningKeySeedCode::detect("usomething").unwrap(),
+            SigningKeySeedCode::MlDsa87
+        );
         assert!(SigningKeySeedCode::detect("Xsomething").is_err());
     }
 }

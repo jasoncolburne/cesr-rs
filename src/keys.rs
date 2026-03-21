@@ -17,7 +17,7 @@ use fips204::traits::{
 use fips204::{ml_dsa_65, ml_dsa_87};
 
 use crate::base64::{b64_decode, b64_encode};
-use crate::codes::{SigningKeySeedCode, SignatureCode, VerificationKeyCode};
+use crate::codes::{SignatureCode, SigningKeySeedCode, VerificationKeyCode};
 use crate::error::CesrError;
 use crate::matter::Matter;
 use crate::signature::Signature;
@@ -352,9 +352,15 @@ impl PrivateKey {
         let raw = decoded[1..].to_vec();
 
         match code {
-            SigningKeySeedCode::Secp256r1 => PrivateKey::from_bytes(VerificationKeyCode::Secp256r1, &raw),
-            SigningKeySeedCode::MlDsa65 => PrivateKey::from_bytes(VerificationKeyCode::MlDsa65, &raw),
-            SigningKeySeedCode::MlDsa87 => PrivateKey::from_bytes(VerificationKeyCode::MlDsa87, &raw),
+            SigningKeySeedCode::Secp256r1 => {
+                PrivateKey::from_bytes(VerificationKeyCode::Secp256r1, &raw)
+            }
+            SigningKeySeedCode::MlDsa65 => {
+                PrivateKey::from_bytes(VerificationKeyCode::MlDsa65, &raw)
+            }
+            SigningKeySeedCode::MlDsa87 => {
+                PrivateKey::from_bytes(VerificationKeyCode::MlDsa87, &raw)
+            }
         }
     }
 }
@@ -433,7 +439,8 @@ mod tests {
         let (original_public, original_private) = generate_secp256r1().unwrap();
         let bytes = original_private.to_bytes();
 
-        let imported_private = PrivateKey::from_bytes(VerificationKeyCode::Secp256r1, &bytes).unwrap();
+        let imported_private =
+            PrivateKey::from_bytes(VerificationKeyCode::Secp256r1, &bytes).unwrap();
         let imported_public = imported_private.public_key();
 
         assert_eq!(original_public, imported_public);
@@ -474,7 +481,8 @@ mod tests {
         let bytes = original_private.to_bytes();
         assert_eq!(bytes.len(), 32);
 
-        let imported_private = PrivateKey::from_bytes(VerificationKeyCode::MlDsa65, &bytes).unwrap();
+        let imported_private =
+            PrivateKey::from_bytes(VerificationKeyCode::MlDsa65, &bytes).unwrap();
         let imported_public = imported_private.public_key();
 
         assert_eq!(original_public, imported_public);
@@ -526,7 +534,8 @@ mod tests {
         let bytes = original_private.to_bytes();
         assert_eq!(bytes.len(), 32);
 
-        let imported_private = PrivateKey::from_bytes(VerificationKeyCode::MlDsa87, &bytes).unwrap();
+        let imported_private =
+            PrivateKey::from_bytes(VerificationKeyCode::MlDsa87, &bytes).unwrap();
         let imported_public = imported_private.public_key();
 
         assert_eq!(original_public, imported_public);
