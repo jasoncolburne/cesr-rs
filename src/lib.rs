@@ -25,15 +25,17 @@ mod signature;
 
 pub use base64::{b64_decode, b64_encode};
 pub use codes::{
-    DigestCode, KemCiphertextCode, KemKeyCode, SignatureCode, SigningKeySeedCode,
+    DigestCode, EncapsulationKeyCode, KemCiphertextCode, SignatureCode, SigningKeySeedCode,
     VerificationKeyCode,
 };
 pub use digest::Digest;
 pub use error::CesrError;
 pub use kem::{
-    KemCiphertext, KemPrivateKey, KemPublicKey, generate_ml_kem_768, generate_ml_kem_1024,
+    DecapsulationKey, EncapsulationKey, KemCiphertext, generate_ml_kem_768, generate_ml_kem_1024,
 };
-pub use keys::{PrivateKey, PublicKey, generate_ml_dsa_65, generate_ml_dsa_87, generate_secp256r1};
+pub use keys::{
+    SigningKey, VerificationKey, generate_ml_dsa_65, generate_ml_dsa_87, generate_secp256r1,
+};
 pub use matter::Matter;
 pub use signature::Signature;
 
@@ -84,7 +86,7 @@ mod tests {
         assert_eq!(qb64.len(), 44);
 
         // Roundtrip
-        let parsed = PrivateKey::from_qb64(&qb64).unwrap();
+        let parsed = SigningKey::from_qb64(&qb64).unwrap();
         assert_eq!(private.to_bytes(), parsed.to_bytes());
     }
 
@@ -114,7 +116,7 @@ mod tests {
         assert_eq!(qb64.len(), 44);
 
         // Roundtrip
-        let parsed = PrivateKey::from_qb64(&qb64).unwrap();
+        let parsed = SigningKey::from_qb64(&qb64).unwrap();
         assert_eq!(private.to_bytes(), parsed.to_bytes());
     }
 
@@ -144,7 +146,7 @@ mod tests {
         assert_eq!(qb64.len(), 44);
 
         // Roundtrip
-        let parsed = PrivateKey::from_qb64(&qb64).unwrap();
+        let parsed = SigningKey::from_qb64(&qb64).unwrap();
         assert_eq!(private.to_bytes(), parsed.to_bytes());
     }
 }

@@ -10,38 +10,38 @@ use fips203::traits::{
 use fips203::{ml_kem_768, ml_kem_1024};
 
 use crate::base64::{b64_decode, b64_encode};
-use crate::codes::{KemCiphertextCode, KemKeyCode};
+use crate::codes::{EncapsulationKeyCode, KemCiphertextCode};
 use crate::error::CesrError;
 use crate::matter::Matter;
 
 /// A KEM encapsulation key with CESR encoding
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct KemPublicKey {
-    code: KemKeyCode,
+pub struct EncapsulationKey {
+    code: EncapsulationKeyCode,
     raw: Vec<u8>,
 }
 
-impl KemPublicKey {
+impl EncapsulationKey {
     /// Create from raw bytes with specified algorithm
-    pub fn from_raw(code: KemKeyCode, raw: Vec<u8>) -> Result<Self, CesrError> {
+    pub fn from_raw(code: EncapsulationKeyCode, raw: Vec<u8>) -> Result<Self, CesrError> {
         if raw.len() != code.raw_size() {
             return Err(CesrError::InvalidLength {
                 expected: code.raw_size(),
                 actual: raw.len(),
             });
         }
-        Ok(KemPublicKey { code, raw })
+        Ok(EncapsulationKey { code, raw })
     }
 
     /// Get the KEM algorithm
-    pub fn algorithm(&self) -> KemKeyCode {
+    pub fn algorithm(&self) -> EncapsulationKeyCode {
         self.code
     }
 
     /// Encapsulate: produce a shared secret and ciphertext
     pub fn encapsulate(&self) -> Result<(KemCiphertext, [u8; 32]), CesrError> {
         match self.code {
-            KemKeyCode::MlKem768 => {
+            EncapsulationKeyCode::MlKem768 => {
                 let ek_bytes: [u8; 1184] = self.raw.as_slice().try_into().map_err(|_| {
                     CesrError::CryptoError("invalid encapsulation key length".into())
                 })?;
@@ -54,7 +54,7 @@ impl KemPublicKey {
                     KemCiphertext::from_raw(KemCiphertextCode::MlKem768, ct.into_bytes().to_vec())?;
                 Ok((ciphertext, ss.into_bytes()))
             }
-            KemKeyCode::MlKem1024 => {
+            EncapsulationKeyCode::MlKem1024 => {
                 let ek_bytes: [u8; 1568] = self.raw.as_slice().try_into().map_err(|_| {
                     CesrError::CryptoError("invalid encapsulation key length".into())
                 })?;
@@ -73,7 +73,7 @@ impl KemPublicKey {
     }
 }
 
-impl Matter for KemPublicKey {
+impl Matter for EncapsulationKey {
     fn code(&self) -> &str {
         self.code.code()
     }
@@ -91,7 +91,7 @@ impl Matter for KemPublicKey {
     }
 
     fn from_qb64(qb64: &str) -> Result<Self, CesrError> {
-        let code = KemKeyCode::detect(qb64)?;
+        let code = EncapsulationKeyCode::detect(qb64)?;
 
         if qb64.len() != code.qb64_size() {
             return Err(CesrError::InvalidLength {
@@ -104,17 +104,17 @@ impl Matter for KemPublicKey {
         let decoded = b64_decode(&to_decode)?;
         let raw = decoded[1..].to_vec();
 
-        KemPublicKey::from_raw(code, raw)
+        EncapsulationKey::from_raw(code, raw)
     }
 }
 
-impl std::fmt::Display for KemPublicKey {
+impl std::fmt::Display for EncapsulationKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.qb64())
     }
 }
 
-impl serde::Serialize for KemPublicKey {
+impl serde::Serialize for EncapsulationKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -123,29 +123,29 @@ impl serde::Serialize for KemPublicKey {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for KemPublicKey {
+impl<'de> serde::Deserialize<'de> for EncapsulationKey {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        KemPublicKey::from_qb64(&s).map_err(serde::de::Error::custom)
+        EncapsulationKey::from_qb64(&s).map_err(serde::de::Error::custom)
     }
 }
 
 /// A KEM decapsulation key (ephemeral, not CESR-encoded)
-pub enum KemPrivateKey {
+pub enum DecapsulationKey {
     /// ML-KEM-768 decapsulation key (2400 bytes serialized)
     MlKem768(Vec<u8>),
     /// ML-KEM-1024 decapsulation key (3168 bytes serialized)
     MlKem1024(Vec<u8>),
 }
 
-impl KemPrivateKey {
+impl DecapsulationKey {
     /// Decapsulate: recover the shared secret from a ciphertext
     pub fn decapsulate(&self, ciphertext: &KemCiphertext) -> Result<[u8; 32], CesrError> {
         match self {
-            KemPrivateKey::MlKem768(bytes) => {
+            DecapsulationKey::MlKem768(bytes) => {
                 let dk_bytes: [u8; 2400] = bytes.as_slice().try_into().map_err(|_| {
                     CesrError::CryptoError("invalid decapsulation key length".into())
                 })?;
@@ -162,7 +162,7 @@ impl KemPrivateKey {
                     .map_err(|e| CesrError::CryptoError(e.to_string()))?;
                 Ok(ss.into_bytes())
             }
-            KemPrivateKey::MlKem1024(bytes) => {
+            DecapsulationKey::MlKem1024(bytes) => {
                 let dk_bytes: [u8; 3168] = bytes.as_slice().try_into().map_err(|_| {
                     CesrError::CryptoError("invalid decapsulation key length".into())
                 })?;
@@ -183,19 +183,19 @@ impl KemPrivateKey {
     }
 
     /// Get the algorithm
-    pub fn algorithm(&self) -> KemKeyCode {
+    pub fn algorithm(&self) -> EncapsulationKeyCode {
         match self {
-            KemPrivateKey::MlKem768(_) => KemKeyCode::MlKem768,
-            KemPrivateKey::MlKem1024(_) => KemKeyCode::MlKem1024,
+            DecapsulationKey::MlKem768(_) => EncapsulationKeyCode::MlKem768,
+            DecapsulationKey::MlKem1024(_) => EncapsulationKeyCode::MlKem1024,
         }
     }
 }
 
-impl std::fmt::Debug for KemPrivateKey {
+impl std::fmt::Debug for DecapsulationKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            KemPrivateKey::MlKem768(_) => write!(f, "KemPrivateKey::MlKem768([REDACTED])"),
-            KemPrivateKey::MlKem1024(_) => write!(f, "KemPrivateKey::MlKem1024([REDACTED])"),
+            DecapsulationKey::MlKem768(_) => write!(f, "DecapsulationKey::MlKem768([REDACTED])"),
+            DecapsulationKey::MlKem1024(_) => write!(f, "DecapsulationKey::MlKem1024([REDACTED])"),
         }
     }
 }
@@ -286,20 +286,22 @@ impl<'de> serde::Deserialize<'de> for KemCiphertext {
 }
 
 /// Generate a new ML-KEM-768 key pair
-pub fn generate_ml_kem_768() -> Result<(KemPublicKey, KemPrivateKey), CesrError> {
+pub fn generate_ml_kem_768() -> Result<(EncapsulationKey, DecapsulationKey), CesrError> {
     let (ek, dk) =
         ml_kem_768::KG::try_keygen().map_err(|e| CesrError::CryptoError(e.to_string()))?;
-    let public = KemPublicKey::from_raw(KemKeyCode::MlKem768, ek.into_bytes().to_vec())?;
-    let private = KemPrivateKey::MlKem768(dk.into_bytes().to_vec());
+    let public =
+        EncapsulationKey::from_raw(EncapsulationKeyCode::MlKem768, ek.into_bytes().to_vec())?;
+    let private = DecapsulationKey::MlKem768(dk.into_bytes().to_vec());
     Ok((public, private))
 }
 
 /// Generate a new ML-KEM-1024 key pair
-pub fn generate_ml_kem_1024() -> Result<(KemPublicKey, KemPrivateKey), CesrError> {
+pub fn generate_ml_kem_1024() -> Result<(EncapsulationKey, DecapsulationKey), CesrError> {
     let (ek, dk) =
         ml_kem_1024::KG::try_keygen().map_err(|e| CesrError::CryptoError(e.to_string()))?;
-    let public = KemPublicKey::from_raw(KemKeyCode::MlKem1024, ek.into_bytes().to_vec())?;
-    let private = KemPrivateKey::MlKem1024(dk.into_bytes().to_vec());
+    let public =
+        EncapsulationKey::from_raw(EncapsulationKeyCode::MlKem1024, ek.into_bytes().to_vec())?;
+    let private = DecapsulationKey::MlKem1024(dk.into_bytes().to_vec());
     Ok((public, private))
 }
 
@@ -310,21 +312,21 @@ mod tests {
     #[test]
     fn test_kem_public_key_roundtrip() {
         let (public, _) = generate_ml_kem_768().unwrap();
-        assert_eq!(public.algorithm(), KemKeyCode::MlKem768);
+        assert_eq!(public.algorithm(), EncapsulationKeyCode::MlKem768);
         assert_eq!(public.raw().len(), 1184);
 
         let qb64 = public.qb64();
         assert!(qb64.starts_with('m'));
         assert_eq!(qb64.len(), 1580);
 
-        let parsed = KemPublicKey::from_qb64(&qb64).unwrap();
+        let parsed = EncapsulationKey::from_qb64(&qb64).unwrap();
         assert_eq!(public, parsed);
     }
 
     #[test]
     fn test_kem_public_key_invalid_length() {
         let raw = vec![0x42u8; 100];
-        assert!(KemPublicKey::from_raw(KemKeyCode::MlKem768, raw).is_err());
+        assert!(EncapsulationKey::from_raw(EncapsulationKeyCode::MlKem768, raw).is_err());
     }
 
     #[test]
@@ -358,21 +360,21 @@ mod tests {
     #[test]
     fn test_kem_generate() {
         let (public, private) = generate_ml_kem_768().unwrap();
-        assert_eq!(public.algorithm(), KemKeyCode::MlKem768);
-        assert_eq!(private.algorithm(), KemKeyCode::MlKem768);
+        assert_eq!(public.algorithm(), EncapsulationKeyCode::MlKem768);
+        assert_eq!(private.algorithm(), EncapsulationKeyCode::MlKem768);
     }
 
     #[test]
     fn test_kem_1024_public_key_roundtrip() {
         let (public, _) = generate_ml_kem_1024().unwrap();
-        assert_eq!(public.algorithm(), KemKeyCode::MlKem1024);
+        assert_eq!(public.algorithm(), EncapsulationKeyCode::MlKem1024);
         assert_eq!(public.raw().len(), 1568);
 
         let qb64 = public.qb64();
         assert!(qb64.starts_with('h'));
         assert_eq!(qb64.len(), 2092);
 
-        let parsed = KemPublicKey::from_qb64(&qb64).unwrap();
+        let parsed = EncapsulationKey::from_qb64(&qb64).unwrap();
         assert_eq!(public, parsed);
     }
 
@@ -401,7 +403,7 @@ mod tests {
     #[test]
     fn test_kem_1024_generate() {
         let (public, private) = generate_ml_kem_1024().unwrap();
-        assert_eq!(public.algorithm(), KemKeyCode::MlKem1024);
-        assert_eq!(private.algorithm(), KemKeyCode::MlKem1024);
+        assert_eq!(public.algorithm(), EncapsulationKeyCode::MlKem1024);
+        assert_eq!(private.algorithm(), EncapsulationKeyCode::MlKem1024);
     }
 }
