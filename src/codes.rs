@@ -116,27 +116,27 @@ impl VerificationKeyCode {
 
 /// KEM encapsulation key codes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum KemKeyCode {
+pub enum EncapsulationKeyCode {
     /// ML-KEM-768 encapsulation key (1184 bytes)
     MlKem768,
     /// ML-KEM-1024 encapsulation key (1568 bytes)
     MlKem1024,
 }
 
-impl KemKeyCode {
+impl EncapsulationKeyCode {
     /// CESR code string
     pub fn code(&self) -> &'static str {
         match self {
-            KemKeyCode::MlKem768 => "m",
-            KemKeyCode::MlKem1024 => "h",
+            EncapsulationKeyCode::MlKem768 => "m",
+            EncapsulationKeyCode::MlKem1024 => "h",
         }
     }
 
     /// Raw key size in bytes
     pub fn raw_size(&self) -> usize {
         match self {
-            KemKeyCode::MlKem768 => 1184,
-            KemKeyCode::MlKem1024 => 1568,
+            EncapsulationKeyCode::MlKem768 => 1184,
+            EncapsulationKeyCode::MlKem1024 => 1568,
         }
     }
 
@@ -148,16 +148,16 @@ impl KemKeyCode {
     /// Full qb64 size
     pub fn qb64_size(&self) -> usize {
         match self {
-            KemKeyCode::MlKem768 => 1580, // 1 + 1579 (1185 bytes → 1580 base64 chars)
-            KemKeyCode::MlKem1024 => 2092, // 1 + 2091 (1569 bytes → 2092 base64 chars)
+            EncapsulationKeyCode::MlKem768 => 1580, // 1 + 1579 (1185 bytes → 1580 base64 chars)
+            EncapsulationKeyCode::MlKem1024 => 2092, // 1 + 2091 (1569 bytes → 2092 base64 chars)
         }
     }
 
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
-            "m" => Ok(KemKeyCode::MlKem768),
-            "h" => Ok(KemKeyCode::MlKem1024),
+            "m" => Ok(EncapsulationKeyCode::MlKem768),
+            "h" => Ok(EncapsulationKeyCode::MlKem1024),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
@@ -165,9 +165,9 @@ impl KemKeyCode {
     /// Try to detect code from qb64 string start
     pub fn detect(qb64: &str) -> Result<Self, CesrError> {
         if qb64.starts_with('m') {
-            Ok(KemKeyCode::MlKem768)
+            Ok(EncapsulationKeyCode::MlKem768)
         } else if qb64.starts_with('h') {
-            Ok(KemKeyCode::MlKem1024)
+            Ok(EncapsulationKeyCode::MlKem1024)
         } else {
             Err(CesrError::InvalidCode(
                 qb64.chars().take(1).collect::<String>(),
@@ -394,13 +394,13 @@ mod tests {
 
     #[test]
     fn test_kem_key_codes() {
-        assert_eq!(KemKeyCode::MlKem768.code(), "m");
-        assert_eq!(KemKeyCode::MlKem768.raw_size(), 1184);
-        assert_eq!(KemKeyCode::MlKem768.qb64_size(), 1580);
+        assert_eq!(EncapsulationKeyCode::MlKem768.code(), "m");
+        assert_eq!(EncapsulationKeyCode::MlKem768.raw_size(), 1184);
+        assert_eq!(EncapsulationKeyCode::MlKem768.qb64_size(), 1580);
 
-        assert_eq!(KemKeyCode::MlKem1024.code(), "h");
-        assert_eq!(KemKeyCode::MlKem1024.raw_size(), 1568);
-        assert_eq!(KemKeyCode::MlKem1024.qb64_size(), 2092);
+        assert_eq!(EncapsulationKeyCode::MlKem1024.code(), "h");
+        assert_eq!(EncapsulationKeyCode::MlKem1024.raw_size(), 1568);
+        assert_eq!(EncapsulationKeyCode::MlKem1024.qb64_size(), 2092);
     }
 
     #[test]
@@ -464,14 +464,14 @@ mod tests {
     #[test]
     fn test_kem_key_code_detect() {
         assert_eq!(
-            KemKeyCode::detect("msomething").unwrap(),
-            KemKeyCode::MlKem768
+            EncapsulationKeyCode::detect("msomething").unwrap(),
+            EncapsulationKeyCode::MlKem768
         );
         assert_eq!(
-            KemKeyCode::detect("hsomething").unwrap(),
-            KemKeyCode::MlKem1024
+            EncapsulationKeyCode::detect("hsomething").unwrap(),
+            EncapsulationKeyCode::MlKem1024
         );
-        assert!(KemKeyCode::detect("Xsomething").is_err());
+        assert!(EncapsulationKeyCode::detect("Xsomething").is_err());
     }
 
     #[test]
