@@ -4,15 +4,15 @@ A concise Rust implementation of [CESR](https://weboftrust.github.io/ietf-cesr/d
 
 ## Custom Code Table
 
-Codes follow a mnemonic convention where **lowercase = private/encapsulation key** and **uppercase = public/signature/ciphertext**.
+Codes follow a mnemonic convention where **lowercase = private** and **uppercase = public**.
 
-| Algorithm | Signing Key (seed) | Verification Key | Signature | KEM Key | Ciphertext |
-|---|---|---|---|---|---|
-| secp256r1 (P-256) | `c` | `1AAC` | `0C` | - | - |
-| ML-DSA-65 | `q` | `Q` | `1AAQ` | - | - |
-| ML-DSA-87 | `u` | `1AAU` | `0U` | - | - |
-| ML-KEM-768 | - | - | - | `m` | `M` |
-| ML-KEM-1024 | - | - | - | `h` | `H` |
+| Algorithm | Signing Key (seed) | Verification Key | Signature | KEM Seed | Encapsulation Key | Ciphertext |
+|---|---|---|---|---|---|---|
+| secp256r1 (P-256) | `c` | `1AAC` | `0C` | - | - | - |
+| ML-DSA-65 | `q` | `Q` | `1AAQ` | - | - | - |
+| ML-DSA-87 | `u` | `1AAU` | `0U` | - | - | - |
+| ML-KEM-768 | - | - | - | `0m` | `M` | `Y` |
+| ML-KEM-1024 | - | - | - | `0h` | `H` | `Z` |
 
 | Algorithm | Digest |
 |---|---|
@@ -25,7 +25,7 @@ Base letter mnemonics:
 - **m** / **h** — medium / high strength KEM
 - **K** — [KELS](https://github.com/jasoncolburne/kels) digests
 
-Multi-character codes (`1AAC`, `1AAU`, `0C`, `0U`, `1AAQ`) preserve the base letter as the distinguishing character while satisfying CESR's 24-bit alignment requirements based on raw primitive size.
+Multi-character codes (`1AAC`, `1AAU`, `0C`, `0U`, `1AAQ`, `0m`, `0h`) preserve the base letter as the distinguishing character while satisfying CESR's 24-bit alignment requirements based on raw primitive size.
 
 ## Supported Primitives
 
