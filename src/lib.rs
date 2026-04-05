@@ -25,8 +25,8 @@ mod signature;
 
 pub use base64::{b64_decode, b64_encode};
 pub use codes::{
-    DigestCode, EncapsulationKeyCode, KemCiphertextCode, SignatureCode, SigningKeySeedCode,
-    VerificationKeyCode,
+    DigestCode, EncapsulationKeyCode, KemCiphertextCode, KemSeedCode, SignatureCode,
+    SigningKeySeedCode, VerificationKeyCode,
 };
 pub use digest::Digest;
 pub use error::CesrError;
