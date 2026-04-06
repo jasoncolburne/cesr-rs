@@ -186,6 +186,18 @@ impl PartialEq for VerificationKey {
 
 impl Eq for VerificationKey {}
 
+impl PartialOrd for VerificationKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for VerificationKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.code.cmp(&other.code).then(self.raw.cmp(&other.raw))
+    }
+}
+
 impl std::hash::Hash for VerificationKey {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.code.hash(state);

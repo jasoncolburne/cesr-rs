@@ -6,7 +6,7 @@ use crate::error::CesrError;
 use crate::matter::Matter;
 
 /// A CESR-encoded nonce.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Nonce {
     code: NonceCode,
     raw: [u8; 12],

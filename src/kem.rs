@@ -16,7 +16,7 @@ use crate::error::CesrError;
 use crate::matter::Matter;
 
 /// A KEM encapsulation key with CESR encoding
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EncapsulationKey {
     code: EncapsulationKeyCode,
     raw: Vec<u8>,

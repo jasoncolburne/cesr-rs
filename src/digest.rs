@@ -10,7 +10,7 @@ use crate::error::CesrError;
 use crate::matter::Matter;
 
 /// A cryptographic digest with CESR encoding
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Digest {
     code: DigestCode,
     raw: Vec<u8>,
