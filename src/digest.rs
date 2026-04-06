@@ -9,11 +9,57 @@ use crate::codes::DigestCode;
 use crate::error::CesrError;
 use crate::matter::Matter;
 
-/// A cryptographic digest with CESR encoding
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// A cryptographic digest with CESR encoding.
+///
+/// Unlike other CESR types, `Digest` caches its qb64 representation on construction
+/// for zero-allocation `&str` access via `AsRef<str>`. This is worthwhile because
+/// digests are small (44 chars for Blake3-256), ubiquitous (every self-addressed struct
+/// has at least one), and frequently need string access for cache keys, logging, and
+/// comparisons. Larger types like `Signature` and `VerificationKey` compute qb64 on
+/// demand since their encoded forms can be several kilobytes and string access is
+/// infrequent outside serialization.
+#[derive(Debug, Clone)]
 pub struct Digest {
     code: DigestCode,
     raw: Vec<u8>,
+    qb64: String,
+}
+
+/// Compute the qb64 string from code and raw bytes.
+fn compute_qb64(code: DigestCode, raw: &[u8]) -> String {
+    let mut padded = vec![0u8];
+    padded.extend_from_slice(raw);
+    let encoded = b64_encode(&padded);
+    format!("{}{}", code.code(), &encoded[1..])
+}
+
+// Manual trait impls that ignore the cached qb64 field
+
+impl PartialEq for Digest {
+    fn eq(&self, other: &Self) -> bool {
+        self.code == other.code && self.raw == other.raw
+    }
+}
+
+impl Eq for Digest {}
+
+impl std::hash::Hash for Digest {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.code.hash(state);
+        self.raw.hash(state);
+    }
+}
+
+impl PartialOrd for Digest {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Digest {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.code.cmp(&other.code).then(self.raw.cmp(&other.raw))
+    }
 }
 
 /// Blake3 hash of empty input, used as the default digest.
@@ -24,10 +70,10 @@ const EMPTY_BLAKE3_RAW: [u8; 32] = [
 
 impl Default for Digest {
     fn default() -> Self {
-        Digest {
-            code: DigestCode::Blake3,
-            raw: EMPTY_BLAKE3_RAW.to_vec(),
-        }
+        let code = DigestCode::Blake3;
+        let raw = EMPTY_BLAKE3_RAW.to_vec();
+        let qb64 = compute_qb64(code, &raw);
+        Digest { code, raw, qb64 }
     }
 }
 
@@ -35,10 +81,10 @@ impl Digest {
     /// Create a Blake3-256 digest of the given data
     pub fn blake3_256(data: &[u8]) -> Self {
         let hash = blake3::hash(data);
-        Digest {
-            code: DigestCode::Blake3,
-            raw: hash.as_bytes().to_vec(),
-        }
+        let code = DigestCode::Blake3;
+        let raw = hash.as_bytes().to_vec();
+        let qb64 = compute_qb64(code, &raw);
+        Digest { code, raw, qb64 }
     }
 
     /// Create a digest from raw bytes with specified algorithm
@@ -49,7 +95,8 @@ impl Digest {
                 actual: raw.len(),
             });
         }
-        Ok(Digest { code, raw })
+        let qb64 = compute_qb64(code, &raw);
+        Ok(Digest { code, raw, qb64 })
     }
 
     /// Get the digest algorithm
@@ -68,6 +115,12 @@ impl Digest {
     }
 }
 
+impl AsRef<str> for Digest {
+    fn as_ref(&self) -> &str {
+        &self.qb64
+    }
+}
+
 impl Matter for Digest {
     fn code(&self) -> &str {
         self.code.code()
@@ -78,19 +131,7 @@ impl Matter for Digest {
     }
 
     fn qb64(&self) -> String {
-        // For 1-char codes with 32-byte raw:
-        // We need to handle the alignment properly
-        // 32 bytes = 256 bits, in base64 = 43 chars (with 2 bits unused)
-        // The code char uses those 2 bits, so we prepend 2 zero bits to raw
-        // and encode (code_bits || raw) together
-
-        // Simpler approach for 1-char codes:
-        // Prepend a zero byte, encode, replace first char with code
-        let mut padded = vec![0u8];
-        padded.extend_from_slice(&self.raw);
-        let encoded = b64_encode(&padded);
-        // Replace first char with code
-        format!("{}{}", self.code.code(), &encoded[1..])
+        self.qb64.clone()
     }
 
     fn from_qb64(qb64: &str) -> Result<Self, CesrError> {
@@ -122,13 +163,17 @@ impl Matter for Digest {
             });
         }
 
-        Ok(Digest { code, raw })
+        Ok(Digest {
+            code,
+            raw,
+            qb64: qb64.to_string(),
+        })
     }
 }
 
 impl std::fmt::Display for Digest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.qb64())
+        f.write_str(&self.qb64)
     }
 }
 
@@ -137,7 +182,7 @@ impl serde::Serialize for Digest {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.qb64())
+        serializer.serialize_str(&self.qb64)
     }
 }
 
@@ -188,6 +233,14 @@ mod tests {
             default.qb64(),
             "KK8TSbn1-aGmoEBN6jbcyUmbyyXJrcESt8yak8rkHzJi"
         );
+    }
+
+    #[test]
+    fn test_as_ref_str() {
+        let digest = Digest::blake3_256(b"test");
+        let s: &str = digest.as_ref();
+        assert_eq!(s, digest.qb64());
+        assert!(s.starts_with('K'));
     }
 
     #[test]
