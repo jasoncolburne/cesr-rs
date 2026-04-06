@@ -18,14 +18,19 @@ Codes follow a mnemonic convention where **lowercase = private** and **uppercase
 |---|---|
 | Blake3-256 | `K` |
 
+| Primitive | Code |
+|---|---|
+| AES-GCM-256 nonce | `1AAN` |
+
 Base letter mnemonics:
 - **c** — classical (ECDSA)
 - **q** — quantum (post-quantum, standard security)
 - **u** — upper-tier quantum (post-quantum, high security)
 - **m** / **h** — medium / high strength KEM
 - **K** — [KELS](https://github.com/jasoncolburne/kels) digests
+- **N** — nonce
 
-Multi-character codes (`1AAC`, `1AAU`, `0C`, `0U`, `1AAQ`, `0m`, `0h`) preserve the base letter as the distinguishing character while satisfying CESR's 24-bit alignment requirements based on raw primitive size.
+Multi-character codes (`1AAC`, `1AAU`, `0C`, `0U`, `1AAQ`, `0m`, `0h`, `1AAN`) preserve the base letter as the distinguishing character while satisfying CESR's 24-bit alignment requirements based on raw primitive size.
 
 ## Supported Primitives
 
