@@ -6,7 +6,9 @@
 use crate::error::CesrError;
 
 /// Digest algorithm codes (1-character codes)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum DigestCode {
     /// Blake3-256 (32 bytes)
     Blake3,
@@ -44,7 +46,9 @@ impl DigestCode {
 }
 
 /// Signing public key algorithm codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum VerificationKeyCode {
     /// secp256r1 (P-256) compressed public key (33 bytes)
     Secp256r1,
@@ -115,7 +119,9 @@ impl VerificationKeyCode {
 }
 
 /// KEM encapsulation key codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum EncapsulationKeyCode {
     /// ML-KEM-768 encapsulation key (1184 bytes)
     MlKem768,
@@ -177,7 +183,9 @@ impl EncapsulationKeyCode {
 }
 
 /// KEM ciphertext codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum KemCiphertextCode {
     /// ML-KEM-768 ciphertext (1088 bytes)
     MlKem768,
@@ -239,7 +247,9 @@ impl KemCiphertextCode {
 }
 
 /// Private key seed codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum SigningKeySeedCode {
     /// secp256r1 (P-256) seed (32 bytes)
     Secp256r1,
@@ -296,7 +306,9 @@ impl SigningKeySeedCode {
 }
 
 /// KEM seed codes (64-byte seeds: d || z, each 32 bytes)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum KemSeedCode {
     /// ML-KEM-768 seed (64 bytes)
     MlKem768,
@@ -360,7 +372,9 @@ impl KemSeedCode {
 }
 
 /// Signature algorithm codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum SignatureCode {
     /// secp256r1 (P-256) ECDSA signature (64 bytes)
     Secp256r1,
@@ -431,7 +445,9 @@ impl SignatureCode {
 }
 
 /// AES-GCM nonce code (12 bytes)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum NonceCode {
     /// AES-GCM-256 nonce (12 bytes)
     AesGcm256,
