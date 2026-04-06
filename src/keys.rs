@@ -186,6 +186,13 @@ impl PartialEq for VerificationKey {
 
 impl Eq for VerificationKey {}
 
+impl std::hash::Hash for VerificationKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.code.hash(state);
+        self.raw.hash(state);
+    }
+}
+
 impl std::fmt::Display for VerificationKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.qb64())
