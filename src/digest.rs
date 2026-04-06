@@ -10,10 +10,25 @@ use crate::error::CesrError;
 use crate::matter::Matter;
 
 /// A cryptographic digest with CESR encoding
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Digest {
     code: DigestCode,
     raw: Vec<u8>,
+}
+
+/// Blake3 hash of empty input, used as the default digest.
+const EMPTY_BLAKE3_RAW: [u8; 32] = [
+    0xaf, 0x13, 0x49, 0xb9, 0xf5, 0xf9, 0xa1, 0xa6, 0xa0, 0x40, 0x4d, 0xea, 0x36, 0xdc, 0xc9, 0x49,
+    0x9b, 0xcb, 0x25, 0xc9, 0xad, 0xc1, 0x12, 0xb7, 0xcc, 0x9a, 0x93, 0xca, 0xe4, 0x1f, 0x32, 0x62,
+];
+
+impl Default for Digest {
+    fn default() -> Self {
+        Digest {
+            code: DigestCode::Blake3,
+            raw: EMPTY_BLAKE3_RAW.to_vec(),
+        }
+    }
 }
 
 impl Digest {
@@ -162,6 +177,29 @@ mod tests {
 
         let parsed = Digest::from_qb64(&qb64).unwrap();
         assert_eq!(digest, parsed);
+    }
+
+    #[test]
+    fn test_default_is_blake3_of_empty() {
+        let default = Digest::default();
+        let empty_hash = Digest::blake3_256(b"");
+        assert_eq!(default, empty_hash);
+        assert_eq!(
+            default.qb64(),
+            "KK8TSbn1-aGmoEBN6jbcyUmbyyXJrcESt8yak8rkHzJi"
+        );
+    }
+
+    #[test]
+    fn test_hash_impl() {
+        use std::collections::HashSet;
+        let d1 = Digest::blake3_256(b"hello");
+        let d2 = Digest::blake3_256(b"hello");
+        let d3 = Digest::blake3_256(b"world");
+        let mut set = HashSet::new();
+        set.insert(d1.clone());
+        assert!(set.contains(&d2));
+        assert!(!set.contains(&d3));
     }
 
     #[test]

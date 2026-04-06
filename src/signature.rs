@@ -10,7 +10,7 @@ use crate::error::CesrError;
 use crate::matter::Matter;
 
 /// A cryptographic signature with CESR encoding
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Signature {
     code: SignatureCode,
     raw: Vec<u8>,
