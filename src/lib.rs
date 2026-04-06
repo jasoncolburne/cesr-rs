@@ -21,11 +21,12 @@ mod error;
 mod kem;
 mod keys;
 mod matter;
+mod nonce;
 mod signature;
 
 pub use base64::{b64_decode, b64_encode};
 pub use codes::{
-    DigestCode, EncapsulationKeyCode, KemCiphertextCode, KemSeedCode, SignatureCode,
+    DigestCode, EncapsulationKeyCode, KemCiphertextCode, KemSeedCode, NonceCode, SignatureCode,
     SigningKeySeedCode, VerificationKeyCode,
 };
 pub use digest::Digest;
@@ -37,6 +38,7 @@ pub use keys::{
     SigningKey, VerificationKey, generate_ml_dsa_65, generate_ml_dsa_87, generate_secp256r1,
 };
 pub use matter::Matter;
+pub use nonce::Nonce;
 pub use signature::Signature;
 
 /// CESR protocol version

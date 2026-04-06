@@ -430,6 +430,58 @@ impl SignatureCode {
     }
 }
 
+/// AES-GCM nonce code (12 bytes)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum NonceCode {
+    /// AES-GCM-256 nonce (12 bytes)
+    AesGcm256,
+}
+
+impl NonceCode {
+    /// CESR code string
+    pub fn code(&self) -> &'static str {
+        match self {
+            NonceCode::AesGcm256 => "1AAN",
+        }
+    }
+
+    /// Raw nonce size in bytes
+    pub fn raw_size(&self) -> usize {
+        match self {
+            NonceCode::AesGcm256 => 12,
+        }
+    }
+
+    /// Code length in characters
+    pub fn code_size(&self) -> usize {
+        4
+    }
+
+    /// Full qb64 size (4 char code + 16 chars = 20)
+    pub fn qb64_size(&self) -> usize {
+        20
+    }
+
+    /// Parse from code string
+    pub fn from_code(code: &str) -> Result<Self, CesrError> {
+        match code {
+            "1AAN" => Ok(NonceCode::AesGcm256),
+            _ => Err(CesrError::InvalidCode(code.to_string())),
+        }
+    }
+
+    /// Try to detect code from qb64 string start
+    pub fn detect(qb64: &str) -> Result<Self, CesrError> {
+        if qb64.starts_with("1AAN") {
+            Ok(NonceCode::AesGcm256)
+        } else {
+            Err(CesrError::InvalidCode(
+                qb64.chars().take(4).collect::<String>(),
+            ))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -607,5 +659,21 @@ mod tests {
             SigningKeySeedCode::MlDsa87
         );
         assert!(SigningKeySeedCode::detect("Xsomething").is_err());
+    }
+
+    #[test]
+    fn test_nonce_codes() {
+        assert_eq!(NonceCode::AesGcm256.code(), "1AAN");
+        assert_eq!(NonceCode::AesGcm256.raw_size(), 12);
+        assert_eq!(NonceCode::AesGcm256.qb64_size(), 20);
+    }
+
+    #[test]
+    fn test_nonce_code_detect() {
+        assert_eq!(
+            NonceCode::detect("1AANsomething").unwrap(),
+            NonceCode::AesGcm256
+        );
+        assert!(NonceCode::detect("XXXXsomething").is_err());
     }
 }
