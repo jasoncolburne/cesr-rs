@@ -196,6 +196,26 @@ impl<'de> serde::Deserialize<'de> for Digest {
     }
 }
 
+/// Create a human-readable test digest from a tag string.
+///
+/// Produces a valid 44-character CESR digest like `Kmy_tag_____________________________________`
+/// that is immediately recognizable in test output. The digest is syntactically valid
+/// but not derivable from any input — use `Digest::blake3_256()` when you need a real hash.
+///
+/// # Panics
+///
+/// Panics if `tag` is longer than 42 characters or contains non-base64url characters.
+#[cfg(feature = "test-utils")]
+pub fn test_digest(tag: &str) -> Digest {
+    assert!(
+        tag.len() <= 43,
+        "test_digest tag must be <= 43 characters, got {}",
+        tag.len()
+    );
+    let qb64 = format!("K{}{}", tag, "_".repeat(43 - tag.len()));
+    Digest::from_qb64(&qb64).unwrap_or_else(|e| panic!("invalid test_digest tag '{tag}': {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -14,6 +14,7 @@ path = "src/lib.rs"
 default = ["native"]
 native = ["rand/std", "blake3/std", "p256/std", "fips204/default", "fips203/default"]
 wasm = ["getrandom/js"]
+test-utils = []
 
 [dependencies]
 # Cryptography - use default-features = false for WASM compatibility

@@ -30,6 +30,8 @@ pub use codes::{
     SigningKeySeedCode, VerificationKeyCode,
 };
 pub use digest::Digest;
+#[cfg(feature = "test-utils")]
+pub use digest::test_digest;
 pub use error::CesrError;
 pub use kem::{
     DecapsulationKey, EncapsulationKey, KemCiphertext, generate_ml_kem_768, generate_ml_kem_1024,
