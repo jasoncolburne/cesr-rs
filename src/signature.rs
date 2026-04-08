@@ -111,6 +111,28 @@ impl<'de> serde::Deserialize<'de> for Signature {
     }
 }
 
+/// Create a human-readable test signature from a tag string.
+///
+/// Produces a valid 88-character secp256r1 CESR signature like
+/// `0Cmy-tag__________________...` that is immediately recognizable in test output.
+/// The signature is syntactically valid but cryptographically meaningless —
+/// use real key generation when you need signature verification to pass.
+///
+/// # Panics
+///
+/// Panics if `tag` is longer than 86 characters or contains non-base64url characters.
+#[cfg(feature = "test-utils")]
+pub fn test_signature(tag: &str) -> Signature {
+    assert!(
+        tag.len() <= 86,
+        "test_signature tag must be <= 86 characters, got {}",
+        tag.len()
+    );
+    let qb64 = format!("0C{}{}", tag, "_".repeat(86 - tag.len()));
+    Signature::from_qb64(&qb64)
+        .unwrap_or_else(|e| panic!("invalid test_signature tag '{tag}': {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
