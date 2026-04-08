@@ -11,26 +11,26 @@ use crate::matter::Matter;
 
 /// A cryptographic digest with CESR encoding.
 ///
-/// Unlike other CESR types, `Digest` caches its qb64 representation on construction
-/// for zero-allocation `&str` access via `AsRef<str>`. This is worthwhile because
-/// digests are small (44 chars for Blake3-256), ubiquitous (every self-addressed struct
-/// has at least one), and frequently need string access for cache keys, logging, and
-/// comparisons. Larger types like `Signature` and `VerificationKey` compute qb64 on
-/// demand since their encoded forms can be several kilobytes and string access is
-/// infrequent outside serialization.
-#[derive(Debug, Clone)]
+/// Fixed-size representation: 32 bytes raw + 44 bytes QB64 cache. This enables `Copy`
+/// semantics, which is important for use as map keys, gossip peer identifiers, and
+/// general value passing without allocation. If additional digest sizes are needed
+/// in the future, introduce `Digest384`/`Digest512` types.
+#[derive(Debug, Clone, Copy)]
 pub struct Digest {
     code: DigestCode,
-    raw: Vec<u8>,
-    qb64: String,
+    raw: [u8; 32],
+    qb64: [u8; 44],
 }
 
-/// Compute the qb64 string from code and raw bytes.
-fn compute_qb64(code: DigestCode, raw: &[u8]) -> String {
+/// Compute the qb64 bytes from code and raw bytes.
+fn compute_qb64(code: DigestCode, raw: &[u8; 32]) -> [u8; 44] {
     let mut padded = vec![0u8];
     padded.extend_from_slice(raw);
     let encoded = b64_encode(&padded);
-    format!("{}{}", code.code(), &encoded[1..])
+    let qb64_str = format!("{}{}", code.code(), &encoded[1..]);
+    let mut qb64 = [0u8; 44];
+    qb64.copy_from_slice(qb64_str.as_bytes());
+    qb64
 }
 
 // Manual trait impls that ignore the cached qb64 field
@@ -71,9 +71,8 @@ const EMPTY_BLAKE3_RAW: [u8; 32] = [
 impl Default for Digest {
     fn default() -> Self {
         let code = DigestCode::Blake3;
-        let raw = EMPTY_BLAKE3_RAW.to_vec();
-        let qb64 = compute_qb64(code, &raw);
-        Digest { code, raw, qb64 }
+        let qb64 = compute_qb64(code, &EMPTY_BLAKE3_RAW);
+        Digest { code, raw: EMPTY_BLAKE3_RAW, qb64 }
     }
 }
 
@@ -82,7 +81,7 @@ impl Digest {
     pub fn blake3_256(data: &[u8]) -> Self {
         let hash = blake3::hash(data);
         let code = DigestCode::Blake3;
-        let raw = hash.as_bytes().to_vec();
+        let raw = *hash.as_bytes();
         let qb64 = compute_qb64(code, &raw);
         Digest { code, raw, qb64 }
     }
@@ -95,8 +94,10 @@ impl Digest {
                 actual: raw.len(),
             });
         }
-        let qb64 = compute_qb64(code, &raw);
-        Ok(Digest { code, raw, qb64 })
+        let mut raw_arr = [0u8; 32];
+        raw_arr.copy_from_slice(&raw);
+        let qb64 = compute_qb64(code, &raw_arr);
+        Ok(Digest { code, raw: raw_arr, qb64 })
     }
 
     /// Get the digest algorithm
@@ -109,7 +110,7 @@ impl Digest {
         match self.code {
             DigestCode::Blake3 => {
                 let computed = blake3::hash(data);
-                self.raw == computed.as_bytes()
+                self.raw == *computed.as_bytes()
             }
         }
     }
@@ -117,7 +118,8 @@ impl Digest {
 
 impl AsRef<str> for Digest {
     fn as_ref(&self) -> &str {
-        &self.qb64
+        // Safety: qb64 is always valid UTF-8 (ASCII base64url characters)
+        std::str::from_utf8(&self.qb64).unwrap_or("")
     }
 }
 
@@ -131,7 +133,7 @@ impl Matter for Digest {
     }
 
     fn qb64(&self) -> String {
-        self.qb64.clone()
+        String::from_utf8_lossy(&self.qb64).into_owned()
     }
 
     fn from_qb64(qb64: &str) -> Result<Self, CesrError> {
@@ -154,26 +156,30 @@ impl Matter for Digest {
         let decoded = b64_decode(&to_decode)?;
 
         // Skip the padding byte
-        let raw = decoded[1..].to_vec();
-
-        if raw.len() != code.raw_size() {
+        if decoded.len() - 1 != code.raw_size() {
             return Err(CesrError::InvalidLength {
                 expected: code.raw_size(),
-                actual: raw.len(),
+                actual: decoded.len() - 1,
             });
         }
+
+        let mut raw = [0u8; 32];
+        raw.copy_from_slice(&decoded[1..]);
+
+        let mut qb64_arr = [0u8; 44];
+        qb64_arr.copy_from_slice(qb64.as_bytes());
 
         Ok(Digest {
             code,
             raw,
-            qb64: qb64.to_string(),
+            qb64: qb64_arr,
         })
     }
 }
 
 impl std::fmt::Display for Digest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.qb64)
+        f.write_str(self.as_ref())
     }
 }
 
@@ -182,7 +188,7 @@ impl serde::Serialize for Digest {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.qb64)
+        serializer.serialize_str(self.as_ref())
     }
 }
 
@@ -198,13 +204,13 @@ impl<'de> serde::Deserialize<'de> for Digest {
 
 /// Create a human-readable test digest from a tag string.
 ///
-/// Produces a valid 44-character CESR digest like `Kmy_tag_____________________________________`
+/// Produces a valid 44-character CESR digest like `Kmy-tag_____________________________________`
 /// that is immediately recognizable in test output. The digest is syntactically valid
 /// but not derivable from any input — use `Digest::blake3_256()` when you need a real hash.
 ///
 /// # Panics
 ///
-/// Panics if `tag` is longer than 42 characters or contains non-base64url characters.
+/// Panics if `tag` is longer than 43 characters or contains non-base64url characters.
 #[cfg(feature = "test-utils")]
 pub fn test_digest(tag: &str) -> Digest {
     assert!(
@@ -270,7 +276,7 @@ mod tests {
         let d2 = Digest::blake3_256(b"hello");
         let d3 = Digest::blake3_256(b"world");
         let mut set = HashSet::new();
-        set.insert(d1.clone());
+        set.insert(d1);
         assert!(set.contains(&d2));
         assert!(!set.contains(&d3));
     }
@@ -282,5 +288,12 @@ mod tests {
         let d2 = Digest::blake3_256(data);
         assert_eq!(d1, d2);
         assert_eq!(d1.qb64(), d2.qb64());
+    }
+
+    #[test]
+    fn test_copy() {
+        let d1 = Digest::blake3_256(b"copy test");
+        let d2 = d1; // Copy, not move
+        assert_eq!(d1, d2); // d1 still usable
     }
 }
