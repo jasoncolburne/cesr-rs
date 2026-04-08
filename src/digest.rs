@@ -19,7 +19,7 @@ use crate::matter::Matter;
 pub struct Digest {
     code: DigestCode,
     raw: [u8; 32],
-    qb64: [u8; 44],
+    qb64b: [u8; 44],
 }
 
 /// Compute the qb64 bytes from code and raw bytes.
@@ -72,7 +72,11 @@ impl Default for Digest {
     fn default() -> Self {
         let code = DigestCode::Blake3;
         let qb64 = compute_qb64(code, &EMPTY_BLAKE3_RAW);
-        Digest { code, raw: EMPTY_BLAKE3_RAW, qb64 }
+        Digest {
+            code,
+            raw: EMPTY_BLAKE3_RAW,
+            qb64b: qb64,
+        }
     }
 }
 
@@ -83,7 +87,11 @@ impl Digest {
         let code = DigestCode::Blake3;
         let raw = *hash.as_bytes();
         let qb64 = compute_qb64(code, &raw);
-        Digest { code, raw, qb64 }
+        Digest {
+            code,
+            raw,
+            qb64b: qb64,
+        }
     }
 
     /// Create a digest from raw bytes with specified algorithm
@@ -97,7 +105,23 @@ impl Digest {
         let mut raw_arr = [0u8; 32];
         raw_arr.copy_from_slice(&raw);
         let qb64 = compute_qb64(code, &raw_arr);
-        Ok(Digest { code, raw: raw_arr, qb64 })
+        Ok(Digest {
+            code,
+            raw: raw_arr,
+            qb64b: qb64,
+        })
+    }
+
+    /// Get the QB64 representation as raw bytes.
+    pub fn qb64b(&self) -> &[u8; 44] {
+        &self.qb64b
+    }
+
+    /// Create a digest from QB64 bytes (44-byte array).
+    pub fn from_qb64b(qb64: [u8; 44]) -> Result<Self, CesrError> {
+        let s = std::str::from_utf8(&qb64)
+            .map_err(|e| CesrError::ParseError(format!("Invalid UTF-8 in qb64 bytes: {e}")))?;
+        Self::from_qb64(s)
     }
 
     /// Get the digest algorithm
@@ -119,7 +143,7 @@ impl Digest {
 impl AsRef<str> for Digest {
     fn as_ref(&self) -> &str {
         // Safety: qb64 is always valid UTF-8 (ASCII base64url characters)
-        std::str::from_utf8(&self.qb64).unwrap_or("")
+        std::str::from_utf8(&self.qb64b).unwrap_or("")
     }
 }
 
@@ -133,7 +157,7 @@ impl Matter for Digest {
     }
 
     fn qb64(&self) -> String {
-        String::from_utf8_lossy(&self.qb64).into_owned()
+        String::from_utf8_lossy(&self.qb64b).into_owned()
     }
 
     fn from_qb64(qb64: &str) -> Result<Self, CesrError> {
@@ -172,7 +196,7 @@ impl Matter for Digest {
         Ok(Digest {
             code,
             raw,
-            qb64: qb64_arr,
+            qb64b: qb64_arr,
         })
     }
 }

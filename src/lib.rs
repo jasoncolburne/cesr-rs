@@ -32,8 +32,6 @@ pub use codes::{
 pub use digest::Digest;
 #[cfg(feature = "test-utils")]
 pub use digest::test_digest;
-#[cfg(feature = "test-utils")]
-pub use signature::test_signature;
 pub use error::CesrError;
 pub use kem::{
     DecapsulationKey, EncapsulationKey, KemCiphertext, generate_ml_kem_768, generate_ml_kem_1024,
@@ -44,6 +42,8 @@ pub use keys::{
 pub use matter::Matter;
 pub use nonce::Nonce;
 pub use signature::Signature;
+#[cfg(feature = "test-utils")]
+pub use signature::test_signature;
 
 /// CESR protocol version
 pub const VERSION: &str = "CESR2.0";
