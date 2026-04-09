@@ -23,14 +23,14 @@ pub struct Digest256 {
 }
 
 /// Compute the qb64 bytes from code and raw bytes.
-fn compute_qb64(code: Digest256Code, raw: &[u8; 32]) -> [u8; 44] {
+fn compute_qb64b(code: Digest256Code, raw: &[u8; 32]) -> [u8; 44] {
     let mut padded = vec![0u8];
     padded.extend_from_slice(raw);
     let encoded = b64_encode(&padded);
-    let qb64_str = format!("{}{}", code.code(), &encoded[1..]);
-    let mut qb64 = [0u8; 44];
-    qb64.copy_from_slice(qb64_str.as_bytes());
-    qb64
+    let qb64 = format!("{}{}", code.code(), &encoded[1..]);
+    let mut qb64b = [0u8; 44];
+    qb64b.copy_from_slice(qb64.as_bytes());
+    qb64b
 }
 
 // Manual trait impls that ignore the cached qb64 field
@@ -71,11 +71,11 @@ const EMPTY_BLAKE3_RAW: [u8; 32] = [
 impl Default for Digest256 {
     fn default() -> Self {
         let code = Digest256Code::Blake3;
-        let qb64 = compute_qb64(code, &EMPTY_BLAKE3_RAW);
+        let qb64b = compute_qb64b(code, &EMPTY_BLAKE3_RAW);
         Digest256 {
             code,
             raw: EMPTY_BLAKE3_RAW,
-            qb64b: qb64,
+            qb64b,
         }
     }
 }
@@ -86,12 +86,8 @@ impl Digest256 {
         let hash = blake3::hash(data);
         let code = Digest256Code::Blake3;
         let raw = *hash.as_bytes();
-        let qb64 = compute_qb64(code, &raw);
-        Digest256 {
-            code,
-            raw,
-            qb64b: qb64,
-        }
+        let qb64b = compute_qb64b(code, &raw);
+        Digest256 { code, raw, qb64b }
     }
 
     /// Create a digest from raw bytes with specified algorithm
@@ -104,11 +100,11 @@ impl Digest256 {
         }
         let mut raw_arr = [0u8; 32];
         raw_arr.copy_from_slice(&raw);
-        let qb64 = compute_qb64(code, &raw_arr);
+        let qb64b = compute_qb64b(code, &raw_arr);
         Ok(Digest256 {
             code,
             raw: raw_arr,
-            qb64b: qb64,
+            qb64b,
         })
     }
 
@@ -190,14 +186,10 @@ impl Matter for Digest256 {
         let mut raw = [0u8; 32];
         raw.copy_from_slice(&decoded[1..]);
 
-        let mut qb64_arr = [0u8; 44];
-        qb64_arr.copy_from_slice(qb64.as_bytes());
+        let mut qb64b = [0u8; 44];
+        qb64b.copy_from_slice(qb64.as_bytes());
 
-        Ok(Digest256 {
-            code,
-            raw,
-            qb64b: qb64_arr,
-        })
+        Ok(Digest256 { code, raw, qb64b })
     }
 }
 

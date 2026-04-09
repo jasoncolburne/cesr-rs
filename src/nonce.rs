@@ -6,19 +6,66 @@ use crate::error::CesrError;
 use crate::matter::Matter;
 
 /// A CESR-encoded nonce.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub struct Nonce96 {
     code: Nonce96Code,
     raw: [u8; 12],
+    qb64b: [u8; 20],
+}
+
+/// Compute the qb64 bytes from code and raw bytes.
+fn compute_96_qb64b(code: Nonce96Code, raw: &[u8; 12]) -> [u8; 20] {
+    // 12 bytes is evenly divisible by 3, so no padding needed
+    let encoded = b64_encode(raw);
+    let qb64 = format!("{}{}", code.code(), &encoded);
+    let mut qb64b = [0u8; 20];
+    qb64b.copy_from_slice(qb64.as_bytes());
+    qb64b
+}
+
+impl PartialEq for Nonce96 {
+    fn eq(&self, other: &Self) -> bool {
+        self.code == other.code && self.raw == other.raw
+    }
+}
+
+impl Eq for Nonce96 {}
+
+impl std::hash::Hash for Nonce96 {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.code.hash(state);
+        self.raw.hash(state);
+    }
+}
+
+impl PartialOrd for Nonce96 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Nonce96 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.code.cmp(&other.code).then(self.raw.cmp(&other.raw))
+    }
+}
+
+impl Default for Nonce96 {
+    fn default() -> Self {
+        let code = Nonce96Code::AesGcm256;
+        let raw = [0u8; 12];
+        let qb64b = compute_96_qb64b(code, &raw);
+        Nonce96 { code, raw, qb64b }
+    }
 }
 
 impl Nonce96 {
     /// Create from raw 12-byte nonce.
     pub fn new(raw: [u8; 12]) -> Self {
-        Nonce96 {
-            code: Nonce96Code::AesGcm256,
-            raw,
-        }
+        let code = Nonce96Code::AesGcm256;
+        let qb64b = compute_96_qb64b(code, &raw);
+
+        Nonce96 { code, raw, qb64b }
     }
 
     /// Generate a random nonce.
@@ -35,6 +82,13 @@ impl Nonce96 {
     }
 }
 
+impl AsRef<str> for Nonce96 {
+    fn as_ref(&self) -> &str {
+        // Safety: qb64 is always valid UTF-8 (ASCII base64url characters)
+        std::str::from_utf8(&self.qb64b).unwrap_or("")
+    }
+}
+
 impl Matter for Nonce96 {
     fn code(&self) -> &str {
         self.code.code()
@@ -45,9 +99,7 @@ impl Matter for Nonce96 {
     }
 
     fn qb64(&self) -> String {
-        // 4-char code → 0 pad bytes
-        let encoded = b64_encode(&self.raw);
-        format!("{}{}", self.code.code(), encoded)
+        self.as_ref().to_owned()
     }
 
     fn from_qb64(qb64: &str) -> Result<Self, CesrError> {
@@ -64,14 +116,16 @@ impl Matter for Nonce96 {
         let raw: [u8; 12] = decoded
             .try_into()
             .map_err(|_| CesrError::CryptoError("invalid nonce length".into()))?;
+        let mut qb64b = [0u8; 20];
+        qb64b.copy_from_slice(qb64.as_bytes());
 
-        Ok(Nonce96 { code, raw })
+        Ok(Nonce96 { code, raw, qb64b })
     }
 }
 
 impl std::fmt::Display for Nonce96 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.qb64())
+        f.write_str(self.as_ref())
     }
 }
 
@@ -80,7 +134,7 @@ impl serde::Serialize for Nonce96 {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.qb64())
+        serializer.serialize_str(self.as_ref())
     }
 }
 
@@ -95,19 +149,67 @@ impl<'de> serde::Deserialize<'de> for Nonce96 {
 }
 
 /// A CESR-encoded 256-bit nonce.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub struct Nonce256 {
     code: Nonce256Code,
     raw: [u8; 32],
+    qb64b: [u8; 44],
+}
+
+/// Compute the qb64 bytes from code and raw bytes.
+fn compute_256_qb64b(code: Nonce256Code, raw: &[u8; 32]) -> [u8; 44] {
+    let mut padded = vec![0u8];
+    padded.extend_from_slice(raw);
+    let encoded = b64_encode(&padded);
+    let qb64 = format!("{}{}", code.code(), &encoded[1..]);
+    let mut qb64b = [0u8; 44];
+    qb64b.copy_from_slice(qb64.as_bytes());
+    qb64b
+}
+
+impl PartialEq for Nonce256 {
+    fn eq(&self, other: &Self) -> bool {
+        self.code == other.code && self.raw == other.raw
+    }
+}
+
+impl Eq for Nonce256 {}
+
+impl std::hash::Hash for Nonce256 {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.code.hash(state);
+        self.raw.hash(state);
+    }
+}
+
+impl PartialOrd for Nonce256 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Nonce256 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.code.cmp(&other.code).then(self.raw.cmp(&other.raw))
+    }
+}
+
+impl Default for Nonce256 {
+    fn default() -> Self {
+        let code = Nonce256Code::Random;
+        let raw = [0u8; 32];
+        let qb64b = compute_256_qb64b(code, &raw);
+        Nonce256 { code, raw, qb64b }
+    }
 }
 
 impl Nonce256 {
     /// Create from raw 32-byte nonce.
     pub fn new(raw: [u8; 32]) -> Self {
-        Nonce256 {
-            code: Nonce256Code::Random,
-            raw,
-        }
+        let code = Nonce256Code::Random;
+        let qb64b = compute_256_qb64b(code, &raw);
+
+        Nonce256 { code, raw, qb64b }
     }
 
     /// Generate a random nonce.
@@ -124,6 +226,13 @@ impl Nonce256 {
     }
 }
 
+impl AsRef<str> for Nonce256 {
+    fn as_ref(&self) -> &str {
+        // Safety: qb64 is always valid UTF-8 (ASCII base64url characters)
+        std::str::from_utf8(&self.qb64b).unwrap_or("")
+    }
+}
+
 impl Matter for Nonce256 {
     fn code(&self) -> &str {
         self.code.code()
@@ -134,11 +243,7 @@ impl Matter for Nonce256 {
     }
 
     fn qb64(&self) -> String {
-        // 1-char code, 32 raw bytes → 1 pad byte
-        let mut padded = vec![0u8];
-        padded.extend_from_slice(&self.raw);
-        let encoded = b64_encode(&padded);
-        format!("{}{}", self.code.code(), &encoded[1..])
+        self.as_ref().to_owned()
     }
 
     fn from_qb64(qb64: &str) -> Result<Self, CesrError> {
@@ -158,14 +263,16 @@ impl Matter for Nonce256 {
         let raw: [u8; 32] = decoded[1..]
             .try_into()
             .map_err(|_| CesrError::CryptoError("invalid nonce length".into()))?;
+        let mut qb64b = [0u8; 44];
+        qb64b.copy_from_slice(qb64.as_bytes());
 
-        Ok(Nonce256 { code, raw })
+        Ok(Nonce256 { code, raw, qb64b })
     }
 }
 
 impl std::fmt::Display for Nonce256 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.qb64())
+        f.write_str(self.as_ref())
     }
 }
 
@@ -174,7 +281,7 @@ impl serde::Serialize for Nonce256 {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.qb64())
+        serializer.serialize_str(self.as_ref())
     }
 }
 
