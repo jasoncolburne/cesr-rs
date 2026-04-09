@@ -5,7 +5,7 @@
 //! - 32 bytes (256 bits): 32 % 3 == 2, needs 1 padding char → 1-char code
 
 use crate::base64::{b64_decode, b64_encode};
-use crate::codes::DigestCode;
+use crate::codes::Digest256Code;
 use crate::error::CesrError;
 use crate::matter::Matter;
 
@@ -16,47 +16,47 @@ use crate::matter::Matter;
 /// general value passing without allocation. If additional digest sizes are needed
 /// in the future, introduce `Digest384`/`Digest512` types.
 #[derive(Debug, Clone, Copy)]
-pub struct Digest {
-    code: DigestCode,
+pub struct Digest256 {
+    code: Digest256Code,
     raw: [u8; 32],
     qb64b: [u8; 44],
 }
 
 /// Compute the qb64 bytes from code and raw bytes.
-fn compute_qb64(code: DigestCode, raw: &[u8; 32]) -> [u8; 44] {
+fn compute_qb64b(code: Digest256Code, raw: &[u8; 32]) -> [u8; 44] {
     let mut padded = vec![0u8];
     padded.extend_from_slice(raw);
     let encoded = b64_encode(&padded);
-    let qb64_str = format!("{}{}", code.code(), &encoded[1..]);
-    let mut qb64 = [0u8; 44];
-    qb64.copy_from_slice(qb64_str.as_bytes());
-    qb64
+    let qb64 = format!("{}{}", code.code(), &encoded[1..]);
+    let mut qb64b = [0u8; 44];
+    qb64b.copy_from_slice(qb64.as_bytes());
+    qb64b
 }
 
 // Manual trait impls that ignore the cached qb64 field
 
-impl PartialEq for Digest {
+impl PartialEq for Digest256 {
     fn eq(&self, other: &Self) -> bool {
         self.code == other.code && self.raw == other.raw
     }
 }
 
-impl Eq for Digest {}
+impl Eq for Digest256 {}
 
-impl std::hash::Hash for Digest {
+impl std::hash::Hash for Digest256 {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.code.hash(state);
         self.raw.hash(state);
     }
 }
 
-impl PartialOrd for Digest {
+impl PartialOrd for Digest256 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Digest {
+impl Ord for Digest256 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.code.cmp(&other.code).then(self.raw.cmp(&other.raw))
     }
@@ -68,34 +68,30 @@ const EMPTY_BLAKE3_RAW: [u8; 32] = [
     0x9b, 0xcb, 0x25, 0xc9, 0xad, 0xc1, 0x12, 0xb7, 0xcc, 0x9a, 0x93, 0xca, 0xe4, 0x1f, 0x32, 0x62,
 ];
 
-impl Default for Digest {
+impl Default for Digest256 {
     fn default() -> Self {
-        let code = DigestCode::Blake3;
-        let qb64 = compute_qb64(code, &EMPTY_BLAKE3_RAW);
-        Digest {
+        let code = Digest256Code::Blake3;
+        let qb64b = compute_qb64b(code, &EMPTY_BLAKE3_RAW);
+        Digest256 {
             code,
             raw: EMPTY_BLAKE3_RAW,
-            qb64b: qb64,
+            qb64b,
         }
     }
 }
 
-impl Digest {
+impl Digest256 {
     /// Create a Blake3-256 digest of the given data
     pub fn blake3_256(data: &[u8]) -> Self {
         let hash = blake3::hash(data);
-        let code = DigestCode::Blake3;
+        let code = Digest256Code::Blake3;
         let raw = *hash.as_bytes();
-        let qb64 = compute_qb64(code, &raw);
-        Digest {
-            code,
-            raw,
-            qb64b: qb64,
-        }
+        let qb64b = compute_qb64b(code, &raw);
+        Digest256 { code, raw, qb64b }
     }
 
     /// Create a digest from raw bytes with specified algorithm
-    pub fn from_raw(code: DigestCode, raw: Vec<u8>) -> Result<Self, CesrError> {
+    pub fn from_raw(code: Digest256Code, raw: Vec<u8>) -> Result<Self, CesrError> {
         if raw.len() != code.raw_size() {
             return Err(CesrError::InvalidLength {
                 expected: code.raw_size(),
@@ -104,11 +100,11 @@ impl Digest {
         }
         let mut raw_arr = [0u8; 32];
         raw_arr.copy_from_slice(&raw);
-        let qb64 = compute_qb64(code, &raw_arr);
-        Ok(Digest {
+        let qb64b = compute_qb64b(code, &raw_arr);
+        Ok(Digest256 {
             code,
             raw: raw_arr,
-            qb64b: qb64,
+            qb64b,
         })
     }
 
@@ -125,14 +121,14 @@ impl Digest {
     }
 
     /// Get the digest algorithm
-    pub fn algorithm(&self) -> DigestCode {
+    pub fn algorithm(&self) -> Digest256Code {
         self.code
     }
 
     /// Compare this digest to the hash of some data
     pub fn verify(&self, data: &[u8]) -> bool {
         match self.code {
-            DigestCode::Blake3 => {
+            Digest256Code::Blake3 => {
                 let computed = blake3::hash(data);
                 self.raw == *computed.as_bytes()
             }
@@ -140,14 +136,14 @@ impl Digest {
     }
 }
 
-impl AsRef<str> for Digest {
+impl AsRef<str> for Digest256 {
     fn as_ref(&self) -> &str {
         // Safety: qb64 is always valid UTF-8 (ASCII base64url characters)
         std::str::from_utf8(&self.qb64b).unwrap_or("")
     }
 }
 
-impl Matter for Digest {
+impl Matter for Digest256 {
     fn code(&self) -> &str {
         self.code.code()
     }
@@ -166,7 +162,7 @@ impl Matter for Digest {
         }
 
         // Detect code from first character(s)
-        let code = DigestCode::from_code(&qb64[..1])?;
+        let code = Digest256Code::from_code(&qb64[..1])?;
 
         if qb64.len() != code.qb64_size() {
             return Err(CesrError::InvalidLength {
@@ -190,24 +186,20 @@ impl Matter for Digest {
         let mut raw = [0u8; 32];
         raw.copy_from_slice(&decoded[1..]);
 
-        let mut qb64_arr = [0u8; 44];
-        qb64_arr.copy_from_slice(qb64.as_bytes());
+        let mut qb64b = [0u8; 44];
+        qb64b.copy_from_slice(qb64.as_bytes());
 
-        Ok(Digest {
-            code,
-            raw,
-            qb64b: qb64_arr,
-        })
+        Ok(Digest256 { code, raw, qb64b })
     }
 }
 
-impl std::fmt::Display for Digest {
+impl std::fmt::Display for Digest256 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_ref())
     }
 }
 
-impl serde::Serialize for Digest {
+impl serde::Serialize for Digest256 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -216,13 +208,13 @@ impl serde::Serialize for Digest {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for Digest {
+impl<'de> serde::Deserialize<'de> for Digest256 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Digest::from_qb64(&s).map_err(serde::de::Error::custom)
+        Digest256::from_qb64(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -236,14 +228,14 @@ impl<'de> serde::Deserialize<'de> for Digest {
 ///
 /// Panics if `tag` is longer than 43 characters or contains non-base64url characters.
 #[cfg(feature = "test-utils")]
-pub fn test_digest(tag: &str) -> Digest {
+pub fn test_digest(tag: &str) -> Digest256 {
     assert!(
         tag.len() <= 43,
         "test_digest tag must be <= 43 characters, got {}",
         tag.len()
     );
     let qb64 = format!("K{}{}", tag, "_".repeat(43 - tag.len()));
-    Digest::from_qb64(&qb64).unwrap_or_else(|e| panic!("invalid test_digest tag '{tag}': {e}"))
+    Digest256::from_qb64(&qb64).unwrap_or_else(|e| panic!("invalid test_digest tag '{tag}': {e}"))
 }
 
 #[cfg(test)]
@@ -253,9 +245,9 @@ mod tests {
     #[test]
     fn test_blake3_256() {
         let data = b"Hello, CESR!";
-        let digest = Digest::blake3_256(data);
+        let digest = Digest256::blake3_256(data);
 
-        assert_eq!(digest.algorithm(), DigestCode::Blake3);
+        assert_eq!(digest.algorithm(), Digest256Code::Blake3);
         assert_eq!(digest.raw().len(), 32);
         assert!(digest.verify(data));
         assert!(!digest.verify(b"Different data"));
@@ -264,20 +256,20 @@ mod tests {
     #[test]
     fn test_qb64_roundtrip() {
         let data = b"Test data for hashing";
-        let digest = Digest::blake3_256(data);
+        let digest = Digest256::blake3_256(data);
 
         let qb64 = digest.qb64();
         assert!(qb64.starts_with('K'));
         assert_eq!(qb64.len(), 44);
 
-        let parsed = Digest::from_qb64(&qb64).unwrap();
+        let parsed = Digest256::from_qb64(&qb64).unwrap();
         assert_eq!(digest, parsed);
     }
 
     #[test]
     fn test_default_is_blake3_of_empty() {
-        let default = Digest::default();
-        let empty_hash = Digest::blake3_256(b"");
+        let default = Digest256::default();
+        let empty_hash = Digest256::blake3_256(b"");
         assert_eq!(default, empty_hash);
         assert_eq!(
             default.qb64(),
@@ -287,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_as_ref_str() {
-        let digest = Digest::blake3_256(b"test");
+        let digest = Digest256::blake3_256(b"test");
         let s: &str = digest.as_ref();
         assert_eq!(s, digest.qb64());
         assert!(s.starts_with('K'));
@@ -296,9 +288,9 @@ mod tests {
     #[test]
     fn test_hash_impl() {
         use std::collections::HashSet;
-        let d1 = Digest::blake3_256(b"hello");
-        let d2 = Digest::blake3_256(b"hello");
-        let d3 = Digest::blake3_256(b"world");
+        let d1 = Digest256::blake3_256(b"hello");
+        let d2 = Digest256::blake3_256(b"hello");
+        let d3 = Digest256::blake3_256(b"world");
         let mut set = HashSet::new();
         set.insert(d1);
         assert!(set.contains(&d2));
@@ -308,15 +300,15 @@ mod tests {
     #[test]
     fn test_deterministic() {
         let data = b"Same input";
-        let d1 = Digest::blake3_256(data);
-        let d2 = Digest::blake3_256(data);
+        let d1 = Digest256::blake3_256(data);
+        let d2 = Digest256::blake3_256(data);
         assert_eq!(d1, d2);
         assert_eq!(d1.qb64(), d2.qb64());
     }
 
     #[test]
     fn test_copy() {
-        let d1 = Digest::blake3_256(b"copy test");
+        let d1 = Digest256::blake3_256(b"copy test");
         let d2 = d1; // Copy, not move
         assert_eq!(d1, d2); // d1 still usable
     }

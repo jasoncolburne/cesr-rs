@@ -9,23 +9,23 @@ use crate::error::CesrError;
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
-pub enum DigestCode {
+pub enum Digest256Code {
     /// Blake3-256 (32 bytes)
     Blake3,
 }
 
-impl DigestCode {
+impl Digest256Code {
     /// CESR code character
     pub fn code(&self) -> &'static str {
         match self {
-            DigestCode::Blake3 => "K",
+            Digest256Code::Blake3 => "K",
         }
     }
 
     /// Raw digest size in bytes
     pub fn raw_size(&self) -> usize {
         match self {
-            DigestCode::Blake3 => 32,
+            Digest256Code::Blake3 => 32,
         }
     }
 
@@ -39,7 +39,7 @@ impl DigestCode {
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
-            "K" => Ok(DigestCode::Blake3),
+            "K" => Ok(Digest256Code::Blake3),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
@@ -444,27 +444,76 @@ impl SignatureCode {
     }
 }
 
-/// AES-GCM nonce code (12 bytes)
+/// 256-bit nonce code (32 bytes, 1-char code)
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
-pub enum NonceCode {
-    /// AES-GCM-256 nonce (12 bytes)
-    AesGcm256,
+pub enum Nonce256Code {
+    /// Random 256-bit nonce (32 bytes)
+    Random,
 }
 
-impl NonceCode {
+impl Nonce256Code {
     /// CESR code string
     pub fn code(&self) -> &'static str {
         match self {
-            NonceCode::AesGcm256 => "1AAN",
+            Nonce256Code::Random => "N",
         }
     }
 
     /// Raw nonce size in bytes
     pub fn raw_size(&self) -> usize {
         match self {
-            NonceCode::AesGcm256 => 12,
+            Nonce256Code::Random => 32,
+        }
+    }
+
+    /// Full qb64 size (1 char code + 43 chars = 44)
+    pub fn qb64_size(&self) -> usize {
+        44
+    }
+
+    /// Parse from code string
+    pub fn from_code(code: &str) -> Result<Self, CesrError> {
+        match code {
+            "N" => Ok(Nonce256Code::Random),
+            _ => Err(CesrError::InvalidCode(code.to_string())),
+        }
+    }
+
+    /// Try to detect code from qb64 string start
+    pub fn detect(qb64: &str) -> Result<Self, CesrError> {
+        if qb64.starts_with('N') {
+            Ok(Nonce256Code::Random)
+        } else {
+            Err(CesrError::InvalidCode(
+                qb64.chars().take(1).collect::<String>(),
+            ))
+        }
+    }
+}
+
+/// AES-GCM nonce code (12 bytes)
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
+pub enum Nonce96Code {
+    /// AES-GCM-256 nonce (12 bytes)
+    AesGcm256,
+}
+
+impl Nonce96Code {
+    /// CESR code string
+    pub fn code(&self) -> &'static str {
+        match self {
+            Nonce96Code::AesGcm256 => "1AAN",
+        }
+    }
+
+    /// Raw nonce size in bytes
+    pub fn raw_size(&self) -> usize {
+        match self {
+            Nonce96Code::AesGcm256 => 12,
         }
     }
 
@@ -481,7 +530,7 @@ impl NonceCode {
     /// Parse from code string
     pub fn from_code(code: &str) -> Result<Self, CesrError> {
         match code {
-            "1AAN" => Ok(NonceCode::AesGcm256),
+            "1AAN" => Ok(Nonce96Code::AesGcm256),
             _ => Err(CesrError::InvalidCode(code.to_string())),
         }
     }
@@ -489,7 +538,7 @@ impl NonceCode {
     /// Try to detect code from qb64 string start
     pub fn detect(qb64: &str) -> Result<Self, CesrError> {
         if qb64.starts_with("1AAN") {
-            Ok(NonceCode::AesGcm256)
+            Ok(Nonce96Code::AesGcm256)
         } else {
             Err(CesrError::InvalidCode(
                 qb64.chars().take(4).collect::<String>(),
@@ -504,9 +553,9 @@ mod tests {
 
     #[test]
     fn test_digest_codes() {
-        assert_eq!(DigestCode::Blake3.code(), "K");
-        assert_eq!(DigestCode::Blake3.raw_size(), 32);
-        assert_eq!(DigestCode::Blake3.qb64_size(), 44);
+        assert_eq!(Digest256Code::Blake3.code(), "K");
+        assert_eq!(Digest256Code::Blake3.raw_size(), 32);
+        assert_eq!(Digest256Code::Blake3.qb64_size(), 44);
     }
 
     #[test]
@@ -678,18 +727,34 @@ mod tests {
     }
 
     #[test]
+    fn test_nonce256_codes() {
+        assert_eq!(Nonce256Code::Random.code(), "N");
+        assert_eq!(Nonce256Code::Random.raw_size(), 32);
+        assert_eq!(Nonce256Code::Random.qb64_size(), 44);
+    }
+
+    #[test]
+    fn test_nonce256_code_detect() {
+        assert_eq!(
+            Nonce256Code::detect("Nsomething").unwrap(),
+            Nonce256Code::Random
+        );
+        assert!(Nonce256Code::detect("Xsomething").is_err());
+    }
+
+    #[test]
     fn test_nonce_codes() {
-        assert_eq!(NonceCode::AesGcm256.code(), "1AAN");
-        assert_eq!(NonceCode::AesGcm256.raw_size(), 12);
-        assert_eq!(NonceCode::AesGcm256.qb64_size(), 20);
+        assert_eq!(Nonce96Code::AesGcm256.code(), "1AAN");
+        assert_eq!(Nonce96Code::AesGcm256.raw_size(), 12);
+        assert_eq!(Nonce96Code::AesGcm256.qb64_size(), 20);
     }
 
     #[test]
     fn test_nonce_code_detect() {
         assert_eq!(
-            NonceCode::detect("1AANsomething").unwrap(),
-            NonceCode::AesGcm256
+            Nonce96Code::detect("1AANsomething").unwrap(),
+            Nonce96Code::AesGcm256
         );
-        assert!(NonceCode::detect("XXXXsomething").is_err());
+        assert!(Nonce96Code::detect("XXXXsomething").is_err());
     }
 }
