@@ -26,10 +26,10 @@ mod signature;
 
 pub use base64::{b64_decode, b64_encode};
 pub use codes::{
-    DigestCode, EncapsulationKeyCode, KemCiphertextCode, KemSeedCode, NonceCode, SignatureCode,
-    SigningKeySeedCode, VerificationKeyCode,
+    Digest256Code, EncapsulationKeyCode, KemCiphertextCode, KemSeedCode, Nonce96Code, Nonce256Code,
+    SignatureCode, SigningKeySeedCode, VerificationKeyCode,
 };
-pub use digest::Digest;
+pub use digest::Digest256;
 #[cfg(feature = "test-utils")]
 pub use digest::test_digest;
 pub use error::CesrError;
@@ -40,7 +40,7 @@ pub use keys::{
     SigningKey, VerificationKey, generate_ml_dsa_65, generate_ml_dsa_87, generate_secp256r1,
 };
 pub use matter::Matter;
-pub use nonce::Nonce;
+pub use nonce::{Nonce96, Nonce256};
 pub use signature::Signature;
 #[cfg(feature = "test-utils")]
 pub use signature::test_signature;
@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn test_blake3_digest() {
         let data = b"test data for hashing";
-        let digest = Digest::blake3_256(data);
+        let digest = Digest256::blake3_256(data);
 
         // Should start with 'E' code
         let qb64 = digest.qb64();
@@ -63,7 +63,7 @@ mod tests {
         assert_eq!(qb64.len(), 44); // 1 code + 43 base64
 
         // Verify roundtrip
-        let parsed = Digest::from_qb64(&qb64).unwrap();
+        let parsed = Digest256::from_qb64(&qb64).unwrap();
         assert_eq!(digest.raw(), parsed.raw());
     }
 
