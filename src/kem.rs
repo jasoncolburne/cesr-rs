@@ -368,9 +368,9 @@ impl<'de> serde::Deserialize<'de> for KemCiphertext {
 
 /// Generate a random 64-byte seed (d || z).
 fn generate_kem_seed() -> [u8; 64] {
-    use rand::RngCore;
+    use rand_core::{OsRng, RngCore};
     let mut seed = [0u8; 64];
-    rand::thread_rng().fill_bytes(&mut seed);
+    OsRng.fill_bytes(&mut seed);
     seed
 }
 

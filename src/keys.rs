@@ -8,8 +8,7 @@ use p256::ecdsa::{
     Signature as P256Sig, SigningKey as P256SigningKey, VerifyingKey as P256VerifyingKey,
     signature::{Signer, Verifier},
 };
-use rand::RngCore;
-use rand::rngs::OsRng;
+use rand_core::{OsRng, RngCore};
 
 use fips204::traits::{
     KeyGen as FipsKeyGen, SerDes as FipsSerDes, Signer as FipsSigner, Verifier as FipsVerifier,
