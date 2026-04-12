@@ -12,7 +12,7 @@ path = "src/lib.rs"
 
 [features]
 default = ["native"]
-native = ["rand/std", "blake3/std", "p256/std", "fips204/default", "fips203/default"]
+native = ["rand_core/std", "blake3/std", "p256/std", "fips204/default", "fips203/default"]
 wasm = ["getrandom/js"]
 test-utils = []
 
@@ -23,8 +23,8 @@ p256 = { version = "0.13", features = ["ecdsa", "ecdsa-core"], default-features 
 fips203 = { version = "0.4", default-features = false }
 fips204 = { version = "0.4", default-features = false }
 signature = "2"
-# RNG support - std_rng and getrandom always enabled for key generation
-rand = { version = "0.8", default-features = false, features = ["std_rng", "getrandom"] }
+# RNG support - matches rand_core version used by p256/fips203/fips204
+rand_core = { version = "0.6", default-features = false, features = ["getrandom"] }
 getrandom = { version = "0.2", default-features = false, optional = true }
 
 # Serialization

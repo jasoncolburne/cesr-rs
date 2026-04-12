@@ -70,9 +70,9 @@ impl Nonce96 {
 
     /// Generate a random nonce.
     pub fn generate() -> Self {
-        use rand::RngCore;
+        use rand_core::{OsRng, RngCore};
         let mut raw = [0u8; 12];
-        rand::thread_rng().fill_bytes(&mut raw);
+        OsRng.fill_bytes(&mut raw);
         Self::new(raw)
     }
 
@@ -214,9 +214,9 @@ impl Nonce256 {
 
     /// Generate a random nonce.
     pub fn generate() -> Self {
-        use rand::RngCore;
+        use rand_core::{OsRng, RngCore};
         let mut raw = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut raw);
+        OsRng.fill_bytes(&mut raw);
         Self::new(raw)
     }
 
