@@ -45,8 +45,10 @@ impl PartialOrd for Nonce96 {
 }
 
 impl Ord for Nonce96 {
+    /// Compare by qb64 representation. See `Digest256::cmp` for the full
+    /// rationale.
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.code.cmp(&other.code).then(self.raw.cmp(&other.raw))
+        self.qb64b.cmp(&other.qb64b)
     }
 }
 
@@ -189,8 +191,10 @@ impl PartialOrd for Nonce256 {
 }
 
 impl Ord for Nonce256 {
+    /// Compare by qb64 representation. See `Digest256::cmp` for the full
+    /// rationale.
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.code.cmp(&other.code).then(self.raw.cmp(&other.raw))
+        self.qb64b.cmp(&other.qb64b)
     }
 }
 

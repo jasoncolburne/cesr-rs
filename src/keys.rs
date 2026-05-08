@@ -192,8 +192,16 @@ impl PartialOrd for VerificationKey {
 }
 
 impl Ord for VerificationKey {
+    /// Compare by qb64 representation, computed inline. Mirrors
+    /// `Digest256` and the nonce types so all CESR primitives share one
+    /// ordering semantics (qb64 canonical identity, byte-equal to
+    /// PostgreSQL TEXT collation). `VerificationKey` does not cache its
+    /// qb64 because ML-DSA-87 keys are ~2.5 KB; the inline conversion at
+    /// comparison time is the trade-off for keeping ordering consistent
+    /// without the per-instance cache cost.
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.code.cmp(&other.code).then(self.raw.cmp(&other.raw))
+        use crate::matter::Matter;
+        self.qb64().cmp(&other.qb64())
     }
 }
 

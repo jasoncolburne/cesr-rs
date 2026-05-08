@@ -57,8 +57,17 @@ impl PartialOrd for Digest256 {
 }
 
 impl Ord for Digest256 {
+    /// Compare by qb64 representation (the canonical CESR identity).
+    ///
+    /// Sorting by `qb64b` matches PostgreSQL TEXT collation byte-for-byte
+    /// (qb64 is ASCII), so any sort-merge that paginates against a TEXT
+    /// column storing qb64 SAIDs (e.g. KELS sad_objects.sad_said,
+    /// kels_key_events.prefix) will see consistent ordering on both sides.
+    /// Sorting by raw bytes diverges from PG's TEXT order because base64url
+    /// alphabet ASCII-order (`-`, `0-9`, `A-Z`, `_`, `a-z`) is different
+    /// from base64url index-order (`A-Z`, `a-z`, `0-9`, `-`, `_`).
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.code.cmp(&other.code).then(self.raw.cmp(&other.raw))
+        self.qb64b.cmp(&other.qb64b)
     }
 }
 
